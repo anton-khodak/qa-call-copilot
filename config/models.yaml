@@ -18,3 +18,13 @@ models:
     max_attempts: 3
     context_tokens: 16384  # longest selected call is ~10k tokens; Ollama's default 4096 would truncate
     max_output_tokens: 1024  # a valid record is ~300 tokens; qwen3 can loop in the objections list
+  qwen3_14b:  # same family as qwen3_8b: isolates the effect of model size
+    provider: ollama
+    model_id: qwen3:14b
+    base_url: http://localhost:11434  # overridden by OLLAMA_HOST
+    price_input_per_1m: 0
+    price_output_per_1m: 0
+    timeout_s: 300
+    max_attempts: 3
+    context_tokens: 16384
+    max_output_tokens: 1024

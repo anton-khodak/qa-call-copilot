@@ -55,7 +55,8 @@ def test_request_shape_same_schema_thinking_off():
     assert str(req.url) == "http://ollama:11434/api/chat"
     assert body["model"] == "qwen3:8b" and body["stream"] is False and body["think"] is False
     assert body["format"] == {"type": "object"}
-    assert body["messages"] == [{"role": "system", "content": "SYS"}, {"role": "user", "content": "USER"}]
+    assert body["messages"][1] == {"role": "user", "content": "USER"}
+    assert body["messages"][0]["role"] == "system" and body["messages"][0]["content"].startswith("SYS")
     assert body["options"] == {"temperature": 0.3, "top_p": 0.9, "seed": 42, "num_ctx": 16384, "num_predict": 1024}
     assert (out.text, out.input_tokens, out.output_tokens, out.warnings) == ('{"x":1}', 900, 120, [])
 
@@ -105,3 +106,13 @@ def test_output_cap_hit_warns():
     body["done_reason"] = "length"
     out = _client(Server((status, body))).complete("S", "U", {}, load_sampling("deterministic"))
     assert out.warnings == ["output_truncated:1024"]
+
+
+def test_schema_shown_to_model_in_system_prompt():
+    """Ollama's `format` only constrains decoding; unlike OpenAI it does not show the schema (and its
+    field descriptions) to the model, so the client appends it to the system prompt."""
+    schema = {"type": "object", "properties": {"x": {"type": "string", "description": "meaning of x"}}}
+    server = Server(chat_ok())
+    _client(server).complete("SYS", "U", schema, load_sampling("deterministic"))
+    system = json.loads(server.requests[0].content)["messages"][0]["content"]
+    assert system.startswith("SYS\n\n") and json.dumps(schema, indent=1) in system

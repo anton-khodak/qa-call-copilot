@@ -12,6 +12,7 @@ uv sync
 cp .env.example .env    # then fill in OPENROUTER_API_KEY; OLLAMA_HOST defaults to http://localhost:11434
 ollama serve &          # if Ollama is not already running
 ollama pull qwen3:8b    # ~5 GB; runs with thinking off and a 16k context
+ollama pull qwen3:14b   # ~9 GB; same family, size comparison
 ```
 
 `HF_TOKEN` is optional (the dataset is not gated).

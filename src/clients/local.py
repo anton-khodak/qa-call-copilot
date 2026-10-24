@@ -1,5 +1,6 @@
 """Local backend: Ollama native /api/chat with JSON-schema `format` and thinking off (spec §5)."""
 
+import json
 import time
 
 import httpx2
@@ -14,6 +15,9 @@ class _ServerError(Exception):
 
 
 RETRYABLE = (httpx2.TransportError, _ServerError)  # TransportError includes timeouts and refused connections
+
+
+SCHEMA_HEADER = "## Output JSON schema (field meanings are in the descriptions)"
 
 
 class OllamaClient:
@@ -44,6 +48,8 @@ class OllamaClient:
             options["num_ctx"] = self.config.context_tokens
         if self.config.max_output_tokens:
             options["num_predict"] = self.config.max_output_tokens
+        # `format` only constrains decoding; OpenAI also shows the schema to the model, Ollama does not
+        system = f"{system}\n\n{SCHEMA_HEADER}\n{json.dumps(schema, indent=1)}"
         body = {
             "model": self.config.model_id,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
