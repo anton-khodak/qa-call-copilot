@@ -3,6 +3,8 @@
 
 Input spec for implementation. Source of truth: `Project spec.md` (the project being built) + the HW1 brief (`Домашні завдання _ 2 потік _ AI Engineering.pdf`) + lecturer guidance (`Overview.md`). Where this file proposes a default, it is marked **Default** and can be changed during brainstorming.
 
+> **Revision 2026-10-24 — Medicare-only scope (schema v2).** The business outcome is compliance QA on every call (CMS disclaimer before benefits), so the data is Medicare-only, split into three call types instead of three business domains. Why: `medicare_inbound.zip` turned out to be ~95% non-Medicare (vet clinics etc.), only Medicare calls exercise the compliance rules, and the stage-2 RAG source is the CMS Medicare guidelines. `domain` became `call_type`; `customer_intent` and `next_action` were dropped (weak link to compliance, hardest to label consistently). §3, §4, §11 and §16 are updated; the 3-domain results are archived in `results/archive/schema_v1_three_domains/`.
+
 ## 1. Goal
 A Python service that turns raw, unlabelled call-centre transcripts into a validated JSON QA record, compares a paid provider model with a local model across prompt versions and sampling configs, and justifies one choice for production with measured numbers.
 
@@ -26,16 +28,24 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 - Out of scope: UI, deployment, fine-tuning, large dataset, RAG, agent.
 
 ## 3. Data
-**Source:** CallCenterEN (AIxBlock) — https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english. One zip per domain; each call is AssemblyAI JSON with `text`, `confidence`, `audio_duration`, `words` (timestamps + confidence), `redacted_pii_policies`. PII already masked (`[PERSON_NAME]`, `[MONEY_AMOUNT]`, `[DATE]`, …). No speaker labels.
+**Source:** CallCenterEN (AIxBlock) — https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english. One zip per campaign (labelled by campaign, not content); each call is AssemblyAI JSON with `text`, `confidence`, `audio_duration`, `words` (timestamps + confidence), `redacted_pii_policies`. PII already masked (`[PERSON_NAME]`, `[MONEY_AMOUNT]`, `[DATE]`, …). No speaker labels.
 
 **Licence constraint (CC BY-NC 4.0, no redistribution):** raw transcripts are NOT committed. The brief requires `data/` with texts and golden set, so `data/` contains:
-- `data/download.py` (or `make data`) — fetches the chosen domain zips and extracts only the selected calls. Check at implementation time whether the dataset is gated; if so, read `HF_TOKEN` from `.env`.
-- `data/manifest.csv` — selected call IDs, domain, duration, split (golden / dev). Committed.
+- `data/download.py` (or `make data`) — fetches the chosen zips (HTTP range reads) and extracts only the selected calls. The dataset is not gated; `HF_TOKEN` is optional.
+- `data/manifest.csv` — selected call IDs, segment, duration, word count, split (golden / dev). Committed.
 - `data/golden/golden_v1.jsonl` — hand labels (own work), keyed by call ID. Committed.
 - `data/raw/` — downloaded transcripts, gitignored.
-- `data/README.md` — dataset described by category (domains, counts, length distribution); lecturer accepts this.
+- `data/README.md` — dataset described by category (segments, counts, length distribution, source caveats); lecturer accepts this.
 
-**Selection.** **Default:** 3 domains — Medicare inbound, auto insurance, home services. ≥ 30 calls total, ~10–12 per domain, picked with a fixed seed; mix of lengths, including a few short/broken calls. 10 calls (≈ 4 Medicare, 3 auto, 3 home services) form the golden set; the remaining ≥ 20 are the dev set.
+**Selection.** Medicare only, three call types ("document types" in the lecturer's sense), 12 calls each, seed 42, mixed lengths via file-size bands:
+
+| Segment | Source zip | Expected `call_type` | Golden |
+|---|---|---|---|
+| inbound_plan | `automotive_and_healthcare_insurance_inbound.zip` | plan_sales | 4 |
+| outbound_plan | `insurance_outbound.zip` | plan_sales | 3 |
+| outbound_equipment | `medical_equipment_outbound.zip` | medical_equipment | 3 |
+
+Zips are labelled by campaign, not content, so a call is kept only if its text mentions "Medicare". Side effect: very short/broken calls rarely mention Medicare, so they are under-represented (shortest selected call: 227 words). 10 calls form the golden set (7 of them plan sales, where the disclaimer rule applies); the remaining 26 are the dev set. Details in `data/README.md`.
 
 **Rules**
 - Feed the transcript `text` raw, as delivered (no cleaning). Keep `words` on disk for stage 2 timestamps.
@@ -44,26 +54,24 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 - Prompt changes are written while looking at the dev set, not the golden set, so prompt v2 doesn't leak golden answers.
 - Calls average ~7 min (~1–2k words); fit in context, no chunking needed. **Default:** log a warning and chunk only if a call exceeds the local model's context.
 
-## 4. Schema (Pydantic, `schema_version = "v1"`)
+## 4. Schema (Pydantic, `schema_version = "v2"`)
 Each field is described once with `Field(description=...)` and passed via structured output. Every enum has short per-value definitions in the description and includes `other`.
 
 | Field | Type | Kind | Notes |
 |---|---|---|---|
-| `domain` | enum: medicare, auto_insurance, home_services, health_insurance, telecom, other | inferred | Ground truth is also known from the source zip → free accuracy check on all 30+ calls |
+| `call_type` | enum: plan_sales, medical_equipment, member_service, other | inferred | Expected value known from the source segment → free accuracy check on all 36 calls; decides whether the disclaimer rule applies |
 | `direction` | enum: inbound, outbound, unknown | inferred | |
-| `customer_intent` | enum (see open question 1) + `other` | inferred | Scored per class |
-| `outcome` | enum: sale, transfer, callback, not_interested, issue_resolved, other | inferred | `issue_resolved` added for service calls (open question 2); scored per class |
+| `outcome` | enum: sale, transfer, callback, not_interested, issue_resolved, other | inferred | `issue_resolved` for member service calls; scored per class |
 | `objections` | list of `{type: enum(price, already_covered, need_to_think, spouse_or_family, not_eligible, distrust, timing, other), handled: bool}` | extracted | Nested list (brief requirement). Empty list if none |
-| `compliance` | object: `recording_disclosed: {value: bool \| null, evidence: str \| null}`, `disclaimer_before_benefits: {value: enum(yes, no, not_applicable), evidence: str \| null}` | extracted | Nested object. `not_applicable` when no benefits discussed or domain is not Medicare. `evidence` = short verbatim quote |
-| `agent_handoff` | bool | extracted | Call passed to another agent mid-call |
-| `next_action` | enum: none, callback_scheduled, transfer, send_documents, follow_up_contact, other + `next_action_note: str \| null` | inferred | Only the enum is scored; the note is not |
+| `compliance` | object: `recording_disclosed: {value: bool \| null, evidence: str \| null}`, `disclaimer_before_benefits: {value: enum(yes, no, not_applicable), evidence: str \| null}` | extracted | Nested object; **the product**. `recording_disclosed = false` only when the call's opening is in the transcript, else `null`. `not_applicable` when no Medicare plan benefits are discussed. `evidence` = short verbatim quote |
+| `agent_handoff` | bool | extracted | Call passed to another agent mid-call (e.g. screener → licensed agent) |
 
-≥ 6 fields, ≥ 1 enum, ≥ 1 nested object/list: satisfied.
+6 fields, ≥ 1 enum, ≥ 1 nested object/list: satisfied. Dropped in v2: `domain` (→ `call_type`), `customer_intent`, `next_action` + `next_action_note`.
 
 **Code checks (code verifies, model extracts)** — run after schema validation, logged as warnings, never silently fixed:
 - every `evidence` quote fuzzy-matches the transcript (e.g. rapidfuzz partial ratio ≥ 90); otherwise flag `evidence_not_found`;
-- `disclaimer_before_benefits != not_applicable` while predicted domain is not Medicare → flag;
-- predicted `domain` vs source domain mismatch → flag.
+- `disclaimer_before_benefits != not_applicable` while predicted `call_type` is not `plan_sales` → flag;
+- predicted `call_type` vs the source segment's expected `call_type` → flag.
 
 ## 5. Model interface
 - One interface, e.g. `extract(transcript, prompt, sampling) -> ExtractionResult`, with two backends:
@@ -102,7 +110,7 @@ Results are committed (outputs contain only already-masked derived data — re-c
 Computed against `golden_v1`, per combination:
 - **Per-field accuracy**: exact match for enums/bools; `objections` → precision/recall/F1 on types + `handled` accuracy on matched types; `compliance.*.value` exact match (evidence checked by code, not scored vs golden).
 - **Extracted vs inferred** fields reported separately; inferred enums also as **per-class accuracy**.
-- `domain` accuracy also on all 30+ calls against source metadata.
+- `call_type` accuracy also on all 36 calls against the source segment.
 - **% valid**: first try / after repair / failed.
 - **Latency p50 / p95** per call.
 - **Cost per 1,000 calls**: from provider usage or tokens × config price; local = $0 API cost (note hardware in report).
@@ -157,7 +165,7 @@ Computed against `golden_v1`, per combination:
 Third cheap provider model · automated regression run of prompts on the golden set · response cache keyed by (call, model, prompt hash, sampling).
 
 ## 16. Open questions for brainstorming
-1. Final `customer_intent` enum — decide after reading ~10 dev calls per domain (candidates: enroll_or_buy, plan_or_quote_info, billing, claim, cancel, service_appointment, technical_support, complaint, other).
-2. Keep `issue_resolved` in `outcome`, or limit the domains to sales calls only?
-3. Exact provider model and local model size (depends on laptop RAM and OpenRouter prices).
+1. ~~Final `customer_intent` enum~~ — resolved: field dropped in schema v2.
+2. ~~Keep `issue_resolved`?~~ — resolved: kept, for member service calls.
+3. ~~Provider and local model~~ — resolved: `openai/gpt-4o-mini` via OpenRouter ($0.15 / $0.60 per 1M tokens) and `qwen3:8b` on Ollama (thinking off, 16k context), on a 24 GB M5 laptop.
 4. Repo visibility: public repo with labels + call IDs only, or private repo shared with the lecturer/mentor?
