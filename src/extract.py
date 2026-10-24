@@ -57,7 +57,7 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
     record, error = validate_output(completion.text)
     if record is None:
         return ExtractionResult("failed", None, completion.text, completion.warnings + [error], latency, **tokens)
-    warnings = completion.warnings + run_checks(record, transcript.text, transcript.domain)
+    warnings = completion.warnings + run_checks(record, transcript.text, transcript.source_call_type)
     return ExtractionResult("valid_first_try", record.model_dump(mode="json"), completion.text, warnings, latency, **tokens)
 
 

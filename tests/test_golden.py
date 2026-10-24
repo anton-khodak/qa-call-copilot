@@ -27,7 +27,7 @@ def _golden(tmp_path, *lines):
 
 def test_load_golden_valid(tmp_path, manifest):
     g = load_golden(_golden(tmp_path, {"call_id": "g1", "label": VALID}), manifest)
-    assert list(g) == ["g1"] and g["g1"].domain.value == "medicare"
+    assert list(g) == ["g1"] and g["g1"].call_type.value == "plan_sales"
 
 
 def test_duplicate_call_id_rejected(tmp_path, manifest):

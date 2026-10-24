@@ -11,11 +11,11 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-from src.dataset import read_manifest
+from src.dataset import SEGMENTS, read_manifest
 from src.golden import load_golden_partial
 from src.schema import CallQARecord
 
-INFERRED = ["domain", "direction", "customer_intent", "outcome", "next_action"]
+INFERRED = ["call_type", "direction", "outcome"]
 EXTRACTED = ["agent_handoff", "recording_disclosed", "disclaimer_before_benefits"]
 GOLDEN_COLUMNS = (
     [f"acc_{f}" for f in INFERRED + EXTRACTED]
@@ -25,7 +25,7 @@ GOLDEN_COLUMNS = (
 COLUMNS = [
     "model", "provider", "prompt_version", "sampling_name", "n_records", "n_calls",
     "valid_first_try_pct", "valid_after_repair_pct", "failed_pct",
-    "latency_p50_ms", "latency_p95_ms", "cost_per_1k_usd", "domain_acc_all",
+    "latency_p50_ms", "latency_p95_ms", "cost_per_1k_usd", "call_type_acc_all",
 ] + GOLDEN_COLUMNS
 
 Combo = tuple[str, str, str]
@@ -122,14 +122,14 @@ def score_golden(records: list[dict], golden: dict[str, CallQARecord]) -> tuple[
     return {c: out.get(c) for c in GOLDEN_COLUMNS}, per_class
 
 
-def combo_metrics(records: list[dict], source_domains: dict[str, str], golden: dict[str, CallQARecord]) -> dict:
+def combo_metrics(records: list[dict], source_call_types: dict[str, str], golden: dict[str, CallQARecord]) -> dict:
     n = len(records)
     status = defaultdict(int)
     for r in records:
         status[r["status"]] += 1
     first = [r for r in records if r["run_idx"] == 0]
-    domain_ok = [
-        r["status"] != "failed" and r["parsed"]["domain"] == source_domains.get(r["call_id"]) for r in first
+    call_type_ok = [
+        r["status"] != "failed" and r["parsed"]["call_type"] == source_call_types.get(r["call_id"]) for r in first
     ]
     latencies = [r["latency_ms"] for r in records]
     golden_scores, _ = score_golden(records, golden)
@@ -147,7 +147,7 @@ def combo_metrics(records: list[dict], source_domains: dict[str, str], golden: d
         "latency_p50_ms": percentile(latencies, 50),
         "latency_p95_ms": percentile(latencies, 95),
         "cost_per_1k_usd": 1000 * statistics.mean(r["cost_usd"] for r in records),
-        "domain_acc_all": sum(domain_ok) / len(domain_ok) if domain_ok else None,
+        "call_type_acc_all": sum(call_type_ok) / len(call_type_ok) if call_type_ok else None,
         **golden_scores,
     }
 
@@ -160,13 +160,13 @@ def _fmt(v, digits=2) -> str:
 
 def markdown_table(rows: list[dict]) -> str:
     head = ("| model | prompt | sampling | valid 1st try % | failed % | p50 s | p95 s | $ / 1k calls | "
-            "domain acc (all) | extracted acc | inferred acc | objections F1 | golden runs |")
+            "call type acc (all) | extracted acc | inferred acc | objections F1 | golden runs |")
     lines = [head, "|" + "---|" * (head.count("|") - 1)]
     for r in rows:
         lines.append("| " + " | ".join([
             r["model"], r["prompt_version"], r["sampling_name"], _fmt(r["valid_first_try_pct"], 0),
             _fmt(r["failed_pct"], 0), _fmt(r["latency_p50_ms"] / 1000, 1), _fmt(r["latency_p95_ms"] / 1000, 1),
-            _fmt(r["cost_per_1k_usd"], 3), _fmt(r["domain_acc_all"]), _fmt(r["acc_extracted"]),
+            _fmt(r["cost_per_1k_usd"], 3), _fmt(r["call_type_acc_all"]), _fmt(r["acc_extracted"]),
             _fmt(r["acc_inferred"]), _fmt(r["obj_f1"]), _fmt(r["golden_runs"]),
         ]) + " |")
     return "\n".join(lines) + "\n"
@@ -175,17 +175,17 @@ def markdown_table(rows: list[dict]) -> str:
 def evaluate(
     runs_dir: Path = Path("results/runs"),
     out_dir: Path = Path("results"),
-    golden_path: Path = Path("data/golden/golden_v1.jsonl"),
+    golden_path: Path = Path("data/golden/golden_v2.jsonl"),
     manifest: Path = Path("data/manifest.csv"),
 ) -> list[dict]:
-    source_domains = {r.call_id: r.domain for r in read_manifest(manifest)}
+    source_call_types = {r.call_id: SEGMENTS[r.segment][1] for r in read_manifest(manifest)}
     golden, skipped = load_golden_partial(golden_path, manifest) if Path(golden_path).exists() else ({}, [])
     if skipped:
         print(f"{len(skipped)} of {len(golden) + len(skipped)} golden labels incomplete or invalid, not scored: "
               f"{', '.join(skipped)}")
     rows, per_class_rows = [], []
     for combo, records in sorted(latest_per_combo(load_runs(runs_dir)).items()):
-        rows.append(combo_metrics(records, source_domains, golden))
+        rows.append(combo_metrics(records, source_call_types, golden))
         per_class_rows += [{"model": combo[0], "prompt_version": combo[1], "sampling_name": combo[2], **c}
                            for c in score_golden(records, golden)[1]]
 
@@ -200,7 +200,7 @@ def evaluate(
         w.writeheader()
         w.writerows(per_class_rows)
     table = markdown_table(rows)
-    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v1.jsonl is filled.\n"
+    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v2.jsonl is filled.\n"
     (out_dir / "metrics.md").write_text(table + note)
     print(table + note)
     return rows

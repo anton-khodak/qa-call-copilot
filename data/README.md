@@ -4,33 +4,34 @@ Source: [CallCenterEN (AIxBlock)](https://huggingface.co/datasets/AIxBlock/92k-r
 
 **Licence: CC BY-NC 4.0, no redistribution.** Raw transcripts are not committed; `make data` downloads exactly the calls in `manifest.csv` into `data/raw/` (gitignored).
 
+## Scope: Medicare calls, three call types
+
+The product is compliance QA for Medicare sales calls (CMS requires a third-party marketing disclaimer before plan benefits are discussed), so every call is a Medicare call. The three "document types" are call types, each from one source zip:
+
+| Segment | Source zip | Expected `call_type` | Calls in zip | Read | Selected | Golden | Dev |
+|---|---|---|---|---|---|---|---|
+| inbound_plan | `automotive_and_healthcare_insurance_inbound.zip` | plan_sales | 1,793 | 32 | 12 | 4 | 8 |
+| outbound_plan | `insurance_outbound.zip` | plan_sales | 4,005 | 12 | 12 | 3 | 9 |
+| outbound_equipment | `medical_equipment_outbound.zip` | medical_equipment | 738 | 14 | 12 | 3 | 9 |
+| **total** | | | | | **36** | **10** | **26** |
+
 ## Selection
 
-36 calls from 3 domains, chosen by `data/download.py` with seed 42. Per domain, 12 calls: 3 from each file-size band (bottom 5%, 5–35%, 35–65%, 65–100%), so a few short or broken calls are always included. File size is used as a proxy for call length so selection needs no full download. 0-byte files are skipped.
+`data/download.py`, seed 42. Per segment, 12 calls: 3 from each file-size band (bottom 5%, 5–35%, 35–65%, 65–100%; file size stands in for call length so selection needs no full download; 0-byte files skipped). Within a band, members are read in seeded random order and kept only if the text mentions "Medicare".
 
-| Domain | Source zip | Calls available | Selected | Golden | Dev |
-|---|---|---|---|---|---|
-| medicare | `insurance_outbound.zip` | 4,005 | 12 | 4 | 8 |
-| auto_insurance | `auto_insurance_customer_service_inbound.zip` | 1,749 | 12 | 3 | 9 |
-| home_services | `home_service_inbound.zip` | 11,407 | 12 | 3 | 9 |
-| **total** | | | **36** | **10** | **26** |
-
-### Source-label caveats
-
-- `medicare_inbound.zip` is **not** used: in a random sample of 40 calls only 2 mentioned Medicare (12 were veterinary clinics, the rest other service calls). `insurance_outbound.zip` is used for Medicare instead (24 of 25 sampled calls mention Medicare), so Medicare calls are **outbound**.
-- `home_service_inbound.zip` includes some auto-glass repair calls (insurance claims for windshields), so the source domain is not perfect ground truth for `domain`.
+Why the filter: source zips are labelled by campaign, not content. `medicare_inbound.zip` is **not** used: in a random sample of 40 calls only 2 mentioned Medicare (12 were veterinary clinics). `automotive_and_healthcare_insurance_inbound.zip` mixes auto and Medicare calls (about 40% mention Medicare). The filter makes every call relevant to the compliance rules, at a cost: very short or broken calls rarely say "Medicare", so the shortest selected call is 227 words. Short/broken-call behaviour is under-tested as a result.
 
 ## Length distribution
 
-| Domain | Duration min / median / max (s) | Words min / median / max |
+| Segment | Duration min / median / max (s) | Words min / median / max |
 |---|---|---|
-| medicare | 149 / 298 / 651 | 62 / 603 / 1,346 |
-| auto_insurance | 236 / 310 / 3,482 | 85 / 536 / 7,763 |
-| home_services | 123 / 224 / 830 | 71 / 338 / 1,424 |
-| all | 123 / 292 / 3,482 | 62 / 531 / 7,763 |
+| inbound_plan | 216 / 432 / 3,130 | 274 / 652 / 2,783 |
+| outbound_plan | 135 / 296 / 499 | 284 / 644 / 1,060 |
+| outbound_equipment | 156 / 490 / 964 | 227 / 766 / 1,883 |
+| all | 135 / 354 / 3,130 | 227 / 688 / 2,783 |
 
 ## Files
 
-- `manifest.csv`: call_id, domain, source zip and member, file size, duration, word count, split (`golden` / `dev`).
-- `golden/golden_v1.jsonl`: hand labels for the 10 golden calls; rules in `golden/LABELING.md`.
-- `raw/<domain>/<call_id>.json`: downloaded transcripts (gitignored).
+- `manifest.csv`: call_id, segment, source zip and member, file size, duration, word count, split (`golden` / `dev`).
+- `golden/golden_v2.jsonl`: hand labels for the 10 golden calls (schema v2); rules in `golden/LABELING.md`. `golden/golden_v1.jsonl` is the abandoned 3-domain draft.
+- `raw/<segment>/<call_id>.json`: downloaded transcripts (gitignored).

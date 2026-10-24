@@ -17,18 +17,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dotenv import load_dotenv  # noqa: E402
 
 from src.dataset import (  # noqa: E402
-    DOMAIN_ZIPS,
     REPO_ID,
+    SEGMENTS,
     ManifestRow,
     assign_splits,
     call_id_from_member,
+    mentions_medicare,
     raw_path,
     read_manifest,
     select_members,
     write_manifest,
 )
 
-PER_DOMAIN = 12
+PER_SEGMENT = 12
 SEED = 42
 
 
@@ -62,17 +63,23 @@ def fetch_listed(rows: list[ManifestRow], raw_dir: Path) -> None:
 
 def reselect(raw_dir: Path) -> list[ManifestRow]:
     rows = []
-    for domain, zip_name in DOMAIN_ZIPS.items():
+    for segment, (zip_name, _) in SEGMENTS.items():
         zf = open_zip(zip_name)
         members = [(i.filename, i.file_size) for i in zf.infolist() if call_id_from_member(i.filename)]
-        chosen = select_members(members, PER_DOMAIN, SEED)
+        read = []
+
+        def accept(member: str) -> bool:
+            read.append(member)
+            return mentions_medicare(zf.read(member))
+
+        chosen = select_members(members, PER_SEGMENT, SEED, accept=accept)
         for member, size in chosen:
-            row = ManifestRow(call_id_from_member(member), domain, zip_name, member, size, None, None, "")
+            row = ManifestRow(call_id_from_member(member), segment, zip_name, member, size, None, None, "")
             d = _extract(zf, row, raw_dir)
             row.audio_duration = d.get("audio_duration")
             row.word_count = len(d.get("words") or [])
             rows.append(row)
-        print(f"{domain}: {len(members)} available, {len(chosen)} selected")
+        print(f"{segment}: {len(members)} available, {len(read)} read, {len(chosen)} mention Medicare and selected")
     return assign_splits(rows)
 
 

@@ -68,9 +68,9 @@ def test_backend_warnings_kept():
 
 
 def test_checks_appended():
-    r = _run(VALID_JSON, t=transcript(domain="auto_insurance"))
+    r = _run(VALID_JSON, t=transcript(segment="outbound_equipment"))
     assert r.status == "valid_first_try"
-    assert "domain_mismatch:predicted=medicare,source=auto_insurance" in r.warnings
+    assert "call_type_mismatch:predicted=plan_sales,source=medical_equipment" in r.warnings
 
 
 def test_cost():
@@ -89,7 +89,7 @@ def test_record_keys_match_spec():
     rec = _record()
     assert list(rec.keys()) == keys
     assert (rec["model"], rec["provider"], rec["prompt_hash"], rec["schema_version"]) == (
-        "openai/gpt-4o-mini", "openrouter", P.hash, "v1")
+        "openai/gpt-4o-mini", "openrouter", P.hash, "v2")
     assert rec["cost_usd"] == pytest.approx((1000 * 0.15 + 200 * 0.60) / 1e6)
 
 

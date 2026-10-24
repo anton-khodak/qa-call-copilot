@@ -66,27 +66,27 @@ def test_score_golden_median_over_runs_and_failed_is_wrong():
         rec("a", 2), rec("b", 2, parsed={**VALID, "outcome": "sale"}),  # run 2: 2/2
     ]
     s, per_class = score_golden(rs, golden)
-    assert s["acc_outcome"] == 0.5 and s["acc_domain"] == 1.0 and s["golden_runs"] == 3
-    assert s["acc_inferred"] == pytest.approx((1 + 1 + 1 + 0.5 + 1) / 5)
+    assert s["acc_outcome"] == 0.5 and s["acc_call_type"] == 1.0 and s["golden_runs"] == 3
+    assert s["acc_inferred"] == pytest.approx((1 + 1 + 0.5) / 3)
     sale = next(c for c in per_class if c["field"] == "outcome" and c["class"] == "sale")
     assert (sale["n"], sale["accuracy"]) == (3, pytest.approx(1 / 3))
 
 
 def test_score_golden_ignores_calls_without_labels():
-    s, _ = score_golden([rec("a"), rec("zzz", parsed={**VALID, "domain": "other"})], {"a": gold()})
-    assert s["acc_domain"] == 1.0
+    s, _ = score_golden([rec("a"), rec("zzz", parsed={**VALID, "call_type": "other"})], {"a": gold()})
+    assert s["acc_call_type"] == 1.0
 
 
 def test_combo_metrics():
     rs = [rec("a", latency=100, cost=0.002), rec("b", status="failed", latency=300, cost=0.0),
           rec("a", 1, latency=200, cost=0.001)]
-    m = combo_metrics(rs, {"a": "medicare", "b": "medicare"}, {})
+    m = combo_metrics(rs, {"a": "plan_sales", "b": "plan_sales"}, {})
     assert (m["n_records"], m["n_calls"]) == (3, 2)
     assert m["valid_first_try_pct"] == pytest.approx(200 / 3) and m["failed_pct"] == pytest.approx(100 / 3)
     assert (m["latency_p50_ms"], m["latency_p95_ms"]) == (200, 300)
     assert m["cost_per_1k_usd"] == pytest.approx(1.0)
-    assert m["domain_acc_all"] == 0.5  # run_idx 0 only; failed b counts wrong
-    assert m["acc_domain"] is None  # no golden labels yet
+    assert m["call_type_acc_all"] == 0.5  # run_idx 0 only; failed b counts wrong
+    assert m["acc_call_type"] is None  # no golden labels yet
 
 
 def test_evaluate_writes_outputs(tmp_path):
@@ -95,8 +95,8 @@ def test_evaluate_writes_outputs(tmp_path):
     (runs / "r1.jsonl").write_text(json.dumps(rec("a")) + "\n")
     (runs / "r2.jsonl.partial").write_text(json.dumps(rec("a", model="aborted")) + "\n")
     manifest = tmp_path / "manifest.csv"
-    manifest.write_text("call_id,domain,zip_name,member,file_size,audio_duration,word_count,split\n"
-                        "a,medicare,z,m,1,,,golden\n")
+    manifest.write_text("call_id,segment,zip_name,member,file_size,audio_duration,word_count,split\n"
+                        "a,outbound_plan,z,m,1,,,golden\n")
     golden = tmp_path / "golden.jsonl"
     golden.write_text(json.dumps({"call_id": "a", "label": VALID}) + "\n")
 
@@ -114,8 +114,8 @@ def test_evaluate_skips_incomplete_golden_labels(tmp_path, capsys):
     runs.mkdir()
     (runs / "r1.jsonl").write_text(json.dumps(rec("a")) + json.dumps(rec("b")).join(["\n", "\n"]))
     manifest = tmp_path / "manifest.csv"
-    manifest.write_text("call_id,domain,zip_name,member,file_size,audio_duration,word_count,split\n"
-                        "a,medicare,z,m,1,,,golden\nb,medicare,z,m,1,,,golden\n")
+    manifest.write_text("call_id,segment,zip_name,member,file_size,audio_duration,word_count,split\n"
+                        "a,outbound_plan,z,m,1,,,golden\nb,outbound_plan,z,m,1,,,golden\n")
     golden = tmp_path / "golden.jsonl"
     blank = {**VALID, "outcome": "", "agent_handoff": ""}  # labelling in progress
     golden.write_text(json.dumps({"call_id": "a", "label": VALID}) + "\n" + json.dumps({"call_id": "b", "label": blank}) + "\n")

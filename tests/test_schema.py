@@ -7,9 +7,8 @@ from src import schema
 from src.schema import SCHEMA_VERSION, CallQARecord, strict_json_schema
 
 VALID = {
-    "domain": "medicare",
-    "direction": "inbound",
-    "customer_intent": "enroll_or_buy",
+    "call_type": "plan_sales",
+    "direction": "outbound",
     "outcome": "transfer",
     "objections": [{"type": "price", "handled": True}],
     "compliance": {
@@ -17,8 +16,6 @@ VALID = {
         "disclaimer_before_benefits": {"value": "not_applicable", "evidence": None},
     },
     "agent_handoff": True,
-    "next_action": "transfer",
-    "next_action_note": None,
 }
 
 MODELS = [
@@ -31,7 +28,7 @@ MODELS = [
 
 
 def test_valid_record_parses():
-    assert CallQARecord.model_validate(VALID).domain.value == "medicare"
+    assert CallQARecord.model_validate(VALID).call_type.value == "plan_sales"
 
 
 def test_unknown_enum_rejected():
@@ -52,7 +49,7 @@ def test_every_enum_has_other_except_fixed_ones():
         for obj in vars(schema).values()
         if isinstance(obj, type) and issubclass(obj, enum.Enum) and obj.__module__ == schema.__name__
     ]
-    assert len(enums) == 7
+    assert len(enums) == 5
     for e in enums:
         assert fixed.get(e, "other") in {m.value for m in e}, e
 
@@ -88,11 +85,23 @@ def test_strict_schema_has_no_refs():
 
     s = strict_json_schema()
     assert "$ref" not in json.dumps(s) and "$defs" not in s
-    domain = s["properties"]["domain"]
-    assert "medicare" in domain["enum"] and domain["description"].startswith("Business domain")
+    call_type = s["properties"]["call_type"]
+    assert "plan_sales" in call_type["enum"] and call_type["description"].startswith("Kind of Medicare call")
     item = s["properties"]["objections"]["items"]
     assert item["additionalProperties"] is False and "price" in item["properties"]["type"]["enum"]
 
 
 def test_schema_version():
-    assert SCHEMA_VERSION == "v1"
+    assert SCHEMA_VERSION == "v2"
+
+
+def test_v2_fields():
+    # Medicare-only scope: compliance QA is the product; intent and next_action were dropped
+    assert list(CallQARecord.model_fields) == [
+        "call_type", "direction", "outcome", "objections", "compliance", "agent_handoff"]
+    assert set(schema.CallType.__members__) == {"plan_sales", "medical_equipment", "member_service", "other"}
+
+
+def test_recording_rule_only_false_when_opening_present():
+    desc = schema.RecordingDisclosed.model_fields["value"].description.lower()
+    assert "opening" in desc and "null" in desc

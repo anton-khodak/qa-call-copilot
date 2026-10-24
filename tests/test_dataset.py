@@ -2,6 +2,8 @@ import io
 import json
 import zipfile
 
+import pytest
+
 from src import dataset
 from src.dataset import (
     ManifestRow,
@@ -14,9 +16,9 @@ from src.dataset import (
 )
 
 
-def _row(call_id, domain="medicare", split="", **kw):
+def _row(call_id, segment="outbound_plan", split="", **kw):
     base = dict(
-        call_id=call_id, domain=domain, zip_name="z.zip", member=f"d/{call_id}_transcript.json",
+        call_id=call_id, segment=segment, zip_name="z.zip", member=f"d/{call_id}_transcript.json",
         file_size=100, audio_duration=None, word_count=None, split=split,
     )
     return ManifestRow(**{**base, **kw})
@@ -38,17 +40,32 @@ def test_select_members_deterministic_and_spans_quartiles():
     assert sum(s < 1000 for s in sizes) == 3  # bottom 5%: short/broken calls (spec §3)
 
 
+def test_select_members_keeps_only_accepted_members():
+    members = [(f"d/c{i}_transcript.json", i * 100) for i in range(200)]
+    accept = lambda m: int(m[3:].split("_")[0]) % 2 == 0  # noqa: E731 - "mentions Medicare" stand-in
+    picked = select_members(members, 12, 42, accept=accept)
+    assert len(picked) == 12 and all(accept(m) for m, _ in picked)
+    assert sum(s < 1000 for _, s in picked) == 3  # still 3 per size band
+
+
+def test_select_members_not_enough_matches_raises():
+    members = [(f"d/c{i}_transcript.json", i * 100) for i in range(200)]
+    with pytest.raises(ValueError, match="size band"):
+        select_members(members, 12, 42, accept=lambda m: False)
+
+
 def test_select_members_skips_empty_files():
     members = [("d/empty_transcript.json", 0)] + [(f"d/c{i}_transcript.json", 100 + i) for i in range(100)]
     assert all(s > 0 for _, s in select_members(members, 12, 42))
 
 
 def test_assign_splits_counts():
-    rows = [_row(f"{d}{i}", d) for d in ("medicare", "auto_insurance", "home_services") for i in range(12)]
+    segs = ("inbound_plan", "outbound_plan", "outbound_equipment")
+    rows = [_row(f"{d}{i}", d) for d in segs for i in range(12)]
     out = assign_splits(rows)
     golden = [r for r in out if r.split == "golden"]
-    assert {d: sum(r.domain == d for r in golden) for d in ("medicare", "auto_insurance", "home_services")} == {
-        "medicare": 4, "auto_insurance": 3, "home_services": 3,
+    assert {d: sum(r.segment == d for r in golden) for d in segs} == {
+        "inbound_plan": 4, "outbound_plan": 3, "outbound_equipment": 3,
     }
     assert sum(r.split == "dev" for r in out) == 26
     assert [r.split for r in out] == [r.split for r in assign_splits(rows)]
@@ -61,22 +78,23 @@ def test_manifest_roundtrip(tmp_path):
     assert read_manifest(p) == rows
 
 
-def _write_raw(raw, domain, call_id, text):
-    (raw / domain).mkdir(parents=True, exist_ok=True)
+def _write_raw(raw, segment, call_id, text):
+    (raw / segment).mkdir(parents=True, exist_ok=True)
     payload = {"text": text, "confidence": 0.9, "audio_duration": 12, "words": [{"text": "Hi"}], "redacted_pii_policies": []}
-    (raw / domain / f"{call_id}.json").write_text(json.dumps(payload))
+    (raw / segment / f"{call_id}.json").write_text(json.dumps(payload))
 
 
 def test_load_transcript_keeps_text_raw(tmp_path):
-    _write_raw(tmp_path, "medicare", "a", "  Hi [PERSON_NAME]..  ")
+    _write_raw(tmp_path, "outbound_plan", "a", "  Hi [PERSON_NAME]..  ")
     t = load_transcript(_row("a", split="dev"), tmp_path)
     assert t.text == "  Hi [PERSON_NAME]..  "
-    assert (t.call_id, t.domain, t.split, t.audio_duration) == ("a", "medicare", "dev", 12)
+    assert (t.call_id, t.segment, t.split, t.audio_duration) == ("a", "outbound_plan", "dev", 12)
+    assert t.source_call_type == "plan_sales"
     assert t.words == [{"text": "Hi"}]
 
 
 def test_load_transcript_empty_text_ok(tmp_path):
-    _write_raw(tmp_path, "medicare", "a", "")
+    _write_raw(tmp_path, "outbound_plan", "a", "")
     assert load_transcript(_row("a"), tmp_path).text == ""
 
 
@@ -105,10 +123,20 @@ def test_download_uses_existing_manifest(tmp_path, monkeypatch):
     dl.main(["--manifest", str(manifest), "--raw-dir", str(tmp_path / "raw")])
 
     assert sorted(read) == sorted(r.member for r in rows)
-    assert (tmp_path / "raw" / "medicare" / "a.json").exists()
+    assert (tmp_path / "raw" / "outbound_plan" / "a.json").exists()
     assert read_manifest(manifest) == rows
 
 
-def test_medicare_source_is_insurance_outbound():
-    # medicare_inbound.zip is ~95% non-Medicare (vet clinics etc.); insurance_outbound.zip is ~96% Medicare
-    assert dataset.DOMAIN_ZIPS["medicare"] == "insurance_outbound.zip"
+def test_segments_are_medicare_call_types():
+    # medicare_inbound.zip is ~95% non-Medicare (vet clinics etc.), so inbound Medicare calls come from the
+    # Medicare-mentioning part of automotive_and_healthcare_insurance_inbound.zip
+    assert dataset.SEGMENTS == {
+        "inbound_plan": ("automotive_and_healthcare_insurance_inbound.zip", "plan_sales"),
+        "outbound_plan": ("insurance_outbound.zip", "plan_sales"),
+        "outbound_equipment": ("medical_equipment_outbound.zip", "medical_equipment"),
+    }
+
+
+def test_mentions_medicare():
+    assert dataset.mentions_medicare(b'{"text": "you are on MEDICARE part B"}')
+    assert not dataset.mentions_medicare(b'{"text": "your dog is due for shots"}')

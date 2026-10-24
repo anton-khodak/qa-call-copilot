@@ -11,8 +11,8 @@ from tests.test_schema import VALID
 VALID_JSON = json.dumps(VALID)
 
 
-def transcript(text="Hi, this call is recorded.", domain="medicare", call_id="c1", split="golden"):
-    return Transcript(call_id=call_id, domain=domain, split=split, text=text, audio_duration=10, words=[])
+def transcript(text="Hi, this call is recorded.", segment="outbound_plan", call_id="c1", split="golden"):
+    return Transcript(call_id=call_id, segment=segment, split=split, text=text, audio_duration=10, words=[])
 
 
 def timeout_error():
