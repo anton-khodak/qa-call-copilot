@@ -2,7 +2,7 @@
 
 Labels are hand-made from the transcript text only (`data/raw/<segment>/<call_id>.json`, field `text`). Never look at model output for a call before or while labelling it. Label only what the text supports; when it doesn't, use the field's fallback value (`unknown`, `null`, `not_applicable`, `other`) exactly as below. The rules mirror the `Field(description=...)` text in `src/schema.py`; if the two disagree, fix both and bump the golden version. Compare runs only within one golden version.
 
-File: `data/golden/golden_v2.jsonl`, one JSON object per line, `{"call_id": "<manifest call_id>", "label": {<CallQARecord>}}`, only `golden` rows from `data/manifest.csv`. Check with `uv run python -c "from src.golden import load_golden; print(len(load_golden()))"` (expect `10`). `golden_v1.jsonl` is the abandoned 3-domain draft and is not scored.
+File: `data/golden/golden_v2.jsonl`, one JSON object per line, `{"call_id": "<manifest call_id>", "label": {<CallQARecord>}}`, only `golden` rows from `data/manifest.csv`. Check with `uv run python -c "from src.golden import load_golden; print(len(load_golden()))"` (expect `10`).
 
 ## What gets scored
 

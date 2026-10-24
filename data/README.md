@@ -33,5 +33,5 @@ Why the filter: source zips are labelled by campaign, not content. `medicare_inb
 ## Files
 
 - `manifest.csv`: call_id, segment, source zip and member, file size, duration, word count, split (`golden` / `dev`).
-- `golden/golden_v2.jsonl`: hand labels for the 10 golden calls (schema v2); rules in `golden/LABELING.md`. `golden/golden_v1.jsonl` is the abandoned 3-domain draft.
+- `golden/golden_v2.jsonl`: hand labels for the 10 golden calls (schema v2); rules in `golden/LABELING.md`.
 - `raw/<segment>/<call_id>.json`: downloaded transcripts (gitignored).

@@ -11,4 +11,8 @@ eval:
 test:
 	uv run pytest
 
-.PHONY: data run eval test
+# local UI for hand-labelling data/golden/golden_v1.jsonl
+label:
+	uv run python -m src.label_app
+
+.PHONY: data run eval test label

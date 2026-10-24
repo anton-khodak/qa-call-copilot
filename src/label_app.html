@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Golden Labeller</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc;
+    --accent: #2f5fd0; --accent-soft: #e8eefb; --ok: #1f8a4c; --warn: #b5671a; --err: #c0392b;
+    --mark: #fff1a8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --text: #ecebe6; --muted: #9a9993; --line: #34332f;
+      --accent: #7aa2ff; --accent-soft: #24304d; --ok: #4cc27f; --warn: #e3a35a; --err: #ff7b6b;
+      --mark: #5a4d12;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { display: flex; gap: 12px; align-items: center; padding: 10px 16px;
+           border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; white-space: nowrap; }
+  #tabs { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  .tab { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 6px;
+         padding: 3px 9px; cursor: pointer; font-size: 12px; max-width: 170px; overflow: hidden;
+         text-overflow: ellipsis; white-space: nowrap; }
+  .tab.active { border-color: var(--accent); background: var(--accent-soft); }
+  .tab .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px;
+              background: var(--warn); vertical-align: 1px; }
+  .tab.done .dot { background: var(--ok); }
+  #progress { color: var(--muted); white-space: nowrap; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(380px, 520px); height: calc(100vh - 49px); }
+  #left { overflow: auto; padding: 16px 20px; border-right: 1px solid var(--line); }
+  #right { overflow: auto; padding: 16px 20px 80px; }
+  #meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; word-break: break-all; }
+  #search { width: 100%; padding: 6px 8px; margin-bottom: 10px; border: 1px solid var(--line);
+            border-radius: 6px; background: var(--panel); color: var(--text); }
+  #transcript { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line);
+                border-radius: 8px; padding: 14px 16px; font-size: 15px; line-height: 1.6; }
+  mark { background: var(--mark); color: inherit; }
+  .field { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+  .field.bad { border-color: var(--err); }
+  .field h3 { margin: 0 0 2px; font-size: 14px; }
+  .help { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  details { font-size: 12px; color: var(--muted); margin: -4px 0 8px; }
+  summary { cursor: pointer; }
+  .opts { display: flex; flex-direction: column; gap: 3px; }
+  .opt { display: grid; grid-template-columns: 18px auto 1fr; gap: 6px; align-items: baseline;
+         padding: 3px 6px; border-radius: 5px; cursor: pointer; }
+  .opt:hover { background: var(--bg); }
+  .opt b { font-weight: 600; white-space: nowrap; }
+  .opt span { color: var(--muted); font-size: 12px; }
+  .opt:has(input:checked) { background: var(--accent-soft); }
+  .obj { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; align-items: center; padding: 3px 6px; }
+  .obj .handled { font-size: 12px; color: var(--muted); }
+  .obj .handled label { margin-left: 8px; cursor: pointer; }
+  textarea, input[type=text] { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+            background: var(--bg); color: var(--text); font: inherit; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+           border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .warn { color: var(--warn); font-size: 12px; }
+  #bar { position: fixed; right: 0; bottom: 0; width: min(520px, 100%); padding: 10px 20px; display: flex; gap: 8px;
+         align-items: center; background: var(--panel); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  #status { flex: 1; font-size: 12px; color: var(--muted); }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    #left { border-right: 0; max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Golden v1</h1>
+  <div id="tabs"></div>
+  <div id="progress"></div>
+</header>
+<main>
+  <section id="left">
+    <div id="meta"></div>
+    <input id="search" type="text" placeholder="Highlight in transcript…">
+    <div id="transcript"></div>
+  </section>
+  <section id="right"><form id="form" onsubmit="return false"></form></section>
+</main>
+<div id="bar">
+  <div id="status"></div>
+  <button id="save">Save</button>
+  <button id="next" class="primary">Save &amp; next</button>
+</div>
+<script>
+let S, cur = 0, lastSel = "", dirty = false;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const norm = s => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+// "Intro. a: meaning; b: meaning." -> {intro, per-option help}
+function splitDesc(desc, opts) {
+  const help = {};
+  let first = desc.length;
+  for (const o of opts) {
+    const re = new RegExp("(?:^|[;.] )" + o + ": (.*?)(?=; [a-z_]+: |$)");
+    const m = desc.match(re);
+    if (m) { help[o] = m[1].replace(/\.$/, ""); first = Math.min(first, m.index); }
+  }
+  return {intro: desc.slice(0, first).replace(/^[;.]\s*/, "").trim(), help};
+}
+
+function parseRules(md) {
+  const rules = {};
+  for (const line of md.split("\n")) {
+    const m = line.match(/^- \*\*([\w.]+)\*\*: (.*)$/);
+    if (m) rules[m[1]] = m[2].replace(/\*\*/g, "").replace(/`/g, "");
+  }
+  return rules;
+}
+
+function fieldBox(key, title, desc, inner) {
+  const rule = S.rulesMap[key];
+  return `<div class="field" data-key="${key}"><h3>${title}</h3>
+    ${desc ? `<p class="help">${esc(desc)}</p>` : ""}
+    ${rule ? `<details><summary>Labelling rule</summary>${esc(rule)}</details>` : ""}
+    ${inner}</div>`;
+}
+
+function radios(name, options, help = {}) {
+  return `<div class="opts">` + options.map(([val, label]) =>
+    `<label class="opt"><input type="radio" name="${name}" value='${esc(JSON.stringify(val))}'>
+      <b>${esc(label)}</b><span>${esc(help[label] ?? help[String(val)] ?? "")}</span></label>`).join("") + `</div>`;
+}
+
+function enumField(key, name, prop) {
+  const {intro, help} = splitDesc(prop.description, prop.enum);
+  return fieldBox(key, name, intro, radios(name, prop.enum.map(v => [v, v]), help));
+}
+
+function evidence(name) {
+  return `<div class="row"><textarea name="${name}" rows="2" placeholder="Verbatim quote, or leave empty for null"></textarea></div>
+    <div class="row"><button type="button" data-sel="${name}">Use selected transcript text</button>
+    <span class="warn" data-warn="${name}"></span></div>`;
+}
+
+function buildForm() {
+  const P = S.schema.properties, C = P.compliance.properties;
+  const rec = C.recording_disclosed.properties, dis = C.disclaimer_before_benefits.properties;
+  const objT = P.objections.items.properties.type;
+  const objHelp = splitDesc(objT.description, objT.enum).help;
+  let h = "";
+  for (const k of ["call_type", "direction", "outcome"]) h += enumField(k, k, P[k]);
+
+  h += fieldBox("objections", "objections",
+    P.objections.description + " Tick each type raised; then mark whether the agent handled it. " +
+    P.objections.items.properties.handled.description,
+    objT.enum.map(t => `<div class="obj"><input type="checkbox" name="obj_${t}" id="obj_${t}">
+      <label for="obj_${t}"><b>${t}</b> <span class="help">${esc(objHelp[t] || "")}</span></label>
+      <span class="handled">handled?
+        <label><input type="radio" name="objh_${t}" value="true"> yes</label>
+        <label><input type="radio" name="objh_${t}" value="false"> no</label></span></div>`).join(""));
+
+  h += fieldBox("compliance.recording_disclosed.value", "compliance.recording_disclosed",
+    rec.value.description,
+    radios("rec_value", [[true, "true"], [false, "false"], [null, "null"]],
+      {"true": "recorded / monitored is stated", "false": "call opening present, no statement",
+       "null": "starts mid-call, or too short or broken to tell"}) +
+    `<p class="help" style="margin-top:8px">evidence — ${esc(rec.evidence.description)}</p>` + evidence("rec_evidence"));
+
+  const dd = splitDesc(dis.value.description, dis.value.enum);
+  h += fieldBox("compliance.disclaimer_before_benefits.value", "compliance.disclaimer_before_benefits",
+    dd.intro, radios("dis_value", dis.value.enum.map(v => [v, v]), dd.help) +
+    `<p class="help" style="margin-top:8px">evidence — ${esc(dis.evidence.description)}</p>` + evidence("dis_evidence"));
+
+  h += fieldBox("agent_handoff", "agent_handoff", P.agent_handoff.description,
+    radios("agent_handoff", [[true, "true"], [false, "false"]]));
+  $("#form").innerHTML = h;
+
+  $("#form").addEventListener("input", () => { dirty = true; checkEvidence(); });
+  $("#form").addEventListener("change", () => { dirty = true; syncObjections(); checkEvidence(); });
+  document.querySelectorAll("[data-sel]").forEach(b => b.onclick = () => {
+    if (!lastSel) return;
+    $(`[name=${b.dataset.sel}]`).value = lastSel; dirty = true; checkEvidence();
+  });
+}
+
+function setRadio(name, val) {
+  document.querySelectorAll(`[name=${name}]`).forEach(r => r.checked = r.value === JSON.stringify(val));
+}
+function getRadio(name, blank = "") {
+  const r = $(`[name=${name}]:checked`);
+  return r ? JSON.parse(r.value) : blank;
+}
+
+function fill(label) {
+  $("#form").reset();
+  for (const k of ["call_type", "direction", "outcome", "agent_handoff"]) setRadio(k, label[k]);
+  for (const o of label.objections || []) {
+    const cb = $(`[name=obj_${o.type}]`); if (cb) cb.checked = true;
+    setRadio(`objh_${o.type}`, o.handled);
+  }
+  const c = label.compliance || {}, rec = c.recording_disclosed || {}, dis = c.disclaimer_before_benefits || {};
+  if (rec.value !== "" && rec.value !== undefined) setRadio("rec_value", rec.value);
+  setRadio("dis_value", dis.value);
+  $("[name=rec_evidence]").value = rec.evidence || "";
+  $("[name=dis_evidence]").value = dis.evidence || "";
+  syncObjections(); checkEvidence(); dirty = false;
+}
+
+function collect() {
+  const P = S.schema.properties;
+  const objections = P.objections.items.properties.type.enum
+    .filter(t => $(`[name=obj_${t}]`).checked)
+    .map(t => ({type: t, handled: getRadio(`objh_${t}`)}));
+  const text = name => $(`[name=${name}]`).value.trim() || null;
+  return {
+    call_type: getRadio("call_type"), direction: getRadio("direction"), outcome: getRadio("outcome"),
+    objections,
+    compliance: {
+      recording_disclosed: {value: getRadio("rec_value"), evidence: text("rec_evidence")},
+      disclaimer_before_benefits: {value: getRadio("dis_value"), evidence: text("dis_evidence")},
+    },
+    agent_handoff: getRadio("agent_handoff"),
+  };
+}
+
+function syncObjections() {
+  document.querySelectorAll(".obj").forEach(row => {
+    const on = $("input[type=checkbox]", row).checked;
+    $(".handled", row).style.visibility = on ? "visible" : "hidden";
+  });
+}
+
+function checkEvidence() {
+  const t = norm(S.calls[cur].text);
+  for (const n of ["rec_evidence", "dis_evidence"]) {
+    const v = $(`[name=${n}]`).value.trim();
+    $(`[data-warn=${n}]`).textContent = v && !t.includes(norm(v)) ? "Not found verbatim in transcript" : "";
+  }
+}
+
+function renderTranscript() {
+  const text = S.calls[cur].text || "(empty transcript)";
+  const q = $("#search").value.trim();
+  if (!q) { $("#transcript").textContent = text; return; }
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  $("#transcript").innerHTML = esc(text).replace(re, m => `<mark>${m}</mark>`);
+}
+
+function renderTabs() {
+  $("#tabs").innerHTML = S.calls.map((c, i) =>
+    `<button class="tab ${i === cur ? "active" : ""} ${c.errors.length ? "" : "done"}" data-i="${i}" title="${esc(c.call_id)}">
+      <span class="dot"></span>${i + 1}. ${esc(c.call_id)}</button>`).join("");
+  document.querySelectorAll(".tab").forEach(b => b.onclick = async () => { await save(); show(+b.dataset.i); });
+  const done = S.calls.filter(c => !c.errors.length).length;
+  $("#progress").textContent = `${done}/${S.calls.length} complete`;
+}
+
+function showErrors(errors) {
+  document.querySelectorAll(".field").forEach(f => f.classList.remove("bad"));
+  const st = $("#status");
+  if (!errors.length) { st.className = "ok"; st.textContent = "Complete and valid ✓"; return; }
+  for (const e of errors) {
+    const key = e.loc.replace(/\.\d+.*$/, "").replace(/^(compliance\.\w+)\..*$/, "$1.value");
+    const f = $(`.field[data-key="${key}"]`) || $(`.field[data-key="${e.loc.split(".")[0]}"]`);
+    if (f) f.classList.add("bad");
+  }
+  st.className = "err";
+  st.textContent = `${errors.length} field(s) missing or invalid: ` + [...new Set(errors.map(e => e.loc))].join(", ");
+}
+
+function show(i) {
+  cur = i;
+  const c = S.calls[i];
+  $("#meta").textContent = `Call ${i + 1} of ${S.calls.length} · ${c.call_id} · ${c.text.split(/\s+/).filter(Boolean).length} words`;
+  renderTranscript(); fill(c.label); showErrors(c.errors); renderTabs();
+  $("#left").scrollTop = 0; $("#right").scrollTop = 0;
+}
+
+async function save() {
+  if (!dirty) return;
+  const c = S.calls[cur], label = collect();
+  const r = await fetch("/api/label", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({call_id: c.call_id, label})});
+  const res = await r.json();
+  if (!r.ok) { $("#status").className = "err"; $("#status").textContent = res.error; return; }
+  c.label = label; c.errors = res.errors; dirty = false;
+  showErrors(c.errors); renderTabs();
+  if (!c.errors.length) $("#status").textContent = "Saved ✓ — complete and valid";
+  else $("#status").textContent = "Saved as draft · " + $("#status").textContent;
+}
+
+$("#save").onclick = () => { dirty = true; save(); };
+$("#next").onclick = async () => { dirty = true; await save(); if (cur < S.calls.length - 1) show(cur + 1); };
+$("#search").oninput = renderTranscript;
+$("#transcript").addEventListener("mouseup", () => {
+  const s = window.getSelection().toString().trim(); if (s) lastSel = s;
+});
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); dirty = true; save(); }
+});
+window.addEventListener("beforeunload", e => { if (dirty) e.preventDefault(); });
+
+(async () => {
+  S = await (await fetch("/api/state")).json();
+  S.rulesMap = parseRules(S.rules);
+  buildForm();
+  const firstTodo = S.calls.findIndex(c => c.errors.length);
+  show(firstTodo < 0 ? 0 : firstTodo);
+})();
+</script>
+</body>
+</html>

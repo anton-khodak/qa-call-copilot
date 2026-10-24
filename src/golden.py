@@ -1,5 +1,5 @@
 """Golden-set hand labels (data/golden/golden_<version>.jsonl), keyed by call ID (spec §3).
-golden_v2 matches schema v2 (Medicare-only); golden_v1 is the abandoned 3-domain draft."""
+golden_v2 matches schema v2 (Medicare-only)."""
 
 import json
 from pathlib import Path
