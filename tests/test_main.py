@@ -53,3 +53,42 @@ def test_auth_error_aborts_run_without_results_file(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="AuthenticationError"):
         main.main(["run", "--yes", "--out-dir", str(tmp_path)])
     assert list(tmp_path.glob("*.jsonl")) == []
+
+
+def _patch_run(monkeypatch, client, calls):
+    monkeypatch.setattr(main, "make_client", lambda cfg: client)
+    monkeypatch.setattr(main, "load_calls", lambda split: calls)
+    monkeypatch.setattr(main, "check_raw_data", lambda: None)
+
+
+def test_make_client_ollama_uses_host_and_checks_ready(monkeypatch):
+    from src.clients.local import OllamaClient
+
+    checked = []
+    monkeypatch.setenv("OLLAMA_HOST", "http://box:1234")
+    monkeypatch.setattr(OllamaClient, "check_ready", lambda self: checked.append(self.host))
+    c = main.make_client(load_model("qwen3_8b"))
+    assert isinstance(c, OllamaClient) and checked == ["http://box:1234"]
+
+
+def test_golden_calls_get_repeated_runs(tmp_path, monkeypatch):
+    calls = [transcript(call_id="g", split="golden"), transcript(call_id="d", split="dev")]
+    _patch_run(monkeypatch, FakeClient(*[VALID_JSON] * 4), calls)
+    main.main(["run", "--yes", "--golden-runs", "3", "--out-dir", str(tmp_path)])
+    lines = [json.loads(l) for l in next(tmp_path.glob("*.jsonl")).read_text().splitlines()]
+    assert [(l["call_id"], l["run_idx"]) for l in lines] == [("g", 0), ("g", 1), ("g", 2), ("d", 0)]
+
+
+def test_matrix_runs_every_combination_then_evaluates(tmp_path, monkeypatch):
+    combos, evaluated = [], []
+    monkeypatch.setattr(main, "load_calls", lambda split: [transcript()])
+    monkeypatch.setattr(main, "check_raw_data", lambda: None)
+    monkeypatch.setattr(main, "make_client", lambda cfg: FakeClient())
+    monkeypatch.setattr(main, "run_combo", lambda client, model, prompt, sampling, *a, **k: combos.append(
+        (model.name, prompt.version, sampling.name)))
+    monkeypatch.setattr(main, "evaluate", lambda runs_dir, out_dir: evaluated.append(runs_dir))
+    main.main(["matrix", "--yes", "--models", "gpt4o_mini", "qwen3_8b", "--samplings", "deterministic", "low",
+               "--out-dir", str(tmp_path)])
+    assert combos == [("gpt4o_mini", "v1", "deterministic"), ("gpt4o_mini", "v1", "low"),
+                      ("qwen3_8b", "v1", "deterministic"), ("qwen3_8b", "v1", "low")]
+    assert evaluated == [tmp_path]

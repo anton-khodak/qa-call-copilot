@@ -10,6 +10,7 @@ dependencies = [
     "rapidfuzz>=3",
     "pyyaml",
     "python-dotenv",
+    "httpx2>=2.16.0",
 ]
 
 [dependency-groups]

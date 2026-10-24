@@ -564,6 +564,7 @@ name = "qa-call-copilot"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "httpx2" },
     { name = "huggingface-hub" },
     { name = "openai" },
     { name = "pydantic" },
@@ -579,6 +580,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx2", specifier = ">=2.16.0" },
     { name = "huggingface-hub", specifier = ">=0.24" },
     { name = "openai", specifier = ">=1.40" },
     { name = "pydantic", specifier = ">=2.7" },

@@ -8,3 +8,12 @@ models:
     price_output_per_1m: 0.60
     timeout_s: 60
     max_attempts: 3
+  qwen3_8b:
+    provider: ollama
+    model_id: qwen3:8b
+    base_url: http://localhost:11434  # overridden by OLLAMA_HOST
+    price_input_per_1m: 0
+    price_output_per_1m: 0
+    timeout_s: 300
+    max_attempts: 3
+    context_tokens: 16384  # longest selected call is ~10k tokens; Ollama's default 4096 would truncate

@@ -1,4 +1,4 @@
-"""One-command entry point: data check → extraction runs → results/runs/*.jsonl."""
+"""One-command entry point: data check → extraction runs → results/runs/*.jsonl → metrics."""
 
 import argparse
 import collections
@@ -10,9 +10,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.clients.base import FatalClientError, ModelClient
+from src.clients.local import OllamaClient
 from src.clients.provider import ProviderClient
-from src.config import ModelConfig, load_model, load_sampling
+from src.config import ModelConfig, SamplingConfig, load_model, load_sampling
 from src.dataset import Transcript, load_calls, raw_path, read_manifest
+from src.eval import evaluate
 from src.extract import extract
 from src.prompts import Prompt, load_prompt
 from src.results import append_jsonl, build_record, cost_usd
@@ -23,6 +25,13 @@ API_KEYS = {"openrouter": "OPENROUTER_API_KEY"}
 
 
 def make_client(model: ModelConfig) -> ModelClient:
+    if model.provider == "ollama":
+        client = OllamaClient(model, os.getenv("OLLAMA_HOST") or model.base_url)
+        try:
+            client.check_ready()
+        except FatalClientError as e:
+            raise SystemExit(str(e))
+        return client
     env = API_KEYS.get(model.provider)
     if env is None:
         raise SystemExit(f"unsupported provider {model.provider!r} for model {model.name!r}")
@@ -40,34 +49,33 @@ def check_raw_data() -> None:
         raise SystemExit(f"{len(missing)} transcripts missing from {RAW_DIR}; run `make data` first")
 
 
+def runs_for(t: Transcript, runs: int, golden_runs: int) -> int:
+    return max(runs, golden_runs) if t.split == "golden" else runs
+
+
 def estimate_cost(
-    transcripts: list[Transcript], model: ModelConfig, runs: int, prompt: Prompt, output_tokens: int = 400
+    transcripts: list[Transcript], model: ModelConfig, runs: int, prompt: Prompt, output_tokens: int = 400,
+    golden_runs: int = 1,
 ) -> float:
-    input_tokens = sum((len(prompt.text) + len(t.text)) / 4 for t in transcripts)
-    return runs * cost_usd(round(input_tokens), output_tokens * len(transcripts), model)
+    total = 0.0
+    for t in transcripts:
+        n = runs_for(t, runs, golden_runs)
+        total += n * cost_usd(round((len(prompt.text) + len(t.text)) / 4), output_tokens, model)
+    return total
 
 
-def run(args: argparse.Namespace) -> None:
-    model = load_model(args.model)
-    prompt = load_prompt(args.prompt)
-    sampling = load_sampling(args.sampling)
-    client = make_client(model)
-    check_raw_data()
-    calls = load_calls(args.split)
-
-    est = estimate_cost(calls, model, args.runs, prompt)
-    print(f"{len(calls)} calls x {args.runs} run(s) on {model.model_id}, prompt {prompt.version}, "
-          f"sampling {sampling.name}: estimated cost ${est:.4f}")
-    if not args.yes and input("Proceed? [y/N] ").strip().lower() != "y":
-        raise SystemExit("aborted")
-
+def run_combo(
+    client: ModelClient, model: ModelConfig, prompt: Prompt, sampling: SamplingConfig,
+    calls: list[Transcript], runs: int, golden_runs: int, out_dir: Path,
+) -> Path:
     run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{model.name}_{prompt.version}_{sampling.name}"
-    out = Path(args.out_dir) / f"{run_id}.jsonl"
+    out = Path(out_dir) / f"{run_id}.jsonl"
     # Written as .partial and renamed when complete, so an aborted run never looks like a result set.
     partial = out.with_suffix(".jsonl.partial")
     statuses, total = collections.Counter(), 0.0
+    print(f"== {model.name} / prompt {prompt.version} / {sampling.name}")
     for t in calls:
-        for run_idx in range(args.runs):
+        for run_idx in range(runs_for(t, runs, golden_runs)):
             try:
                 result = extract(client, t, prompt, sampling)
             except FatalClientError as e:
@@ -77,26 +85,75 @@ def run(args: argparse.Namespace) -> None:
             statuses[result.status] += 1
             total += record["cost_usd"]
             flags = f" {result.warnings}" if result.warnings else ""
-            print(f"{t.call_id} [{run_idx}] {result.status} {result.latency_ms}ms{flags}")
+            print(f"{t.call_id} [{run_idx}] {result.status} {result.latency_ms}ms{flags}", flush=True)
     partial.rename(out)
     print(f"done: {dict(statuses)}, cost ${total:.4f}, results in {out}")
+    return out
+
+
+def _confirm(args: argparse.Namespace, estimate: float, what: str) -> None:
+    print(f"{what}: estimated API cost ${estimate:.4f}")
+    if not args.yes and input("Proceed? [y/N] ").strip().lower() != "y":
+        raise SystemExit("aborted")
+
+
+def run(args: argparse.Namespace) -> None:
+    model, prompt, sampling = load_model(args.model), load_prompt(args.prompt), load_sampling(args.sampling)
+    client = make_client(model)
+    check_raw_data()
+    calls = load_calls(args.split)
+    est = estimate_cost(calls, model, args.runs, prompt, golden_runs=args.golden_runs)
+    _confirm(args, est, f"{len(calls)} calls on {model.model_id}, prompt {prompt.version}, sampling {sampling.name}")
+    run_combo(client, model, prompt, sampling, calls, args.runs, args.golden_runs, args.out_dir)
+
+
+def matrix(args: argparse.Namespace) -> None:
+    models = [load_model(m) for m in args.models]
+    prompts = [load_prompt(p) for p in args.prompts]
+    samplings = [load_sampling(s) for s in args.samplings]
+    clients = {m.name: make_client(m) for m in models}  # fail fast on missing keys / Ollama before any call
+    check_raw_data()
+    calls = load_calls(args.split)
+    combos = [(m, p, s) for m in models for p in prompts for s in samplings]
+    est = sum(estimate_cost(calls, m, args.runs, p, golden_runs=args.golden_runs) for m, p, _ in combos)
+    _confirm(args, est, f"{len(combos)} combinations x {len(calls)} calls")
+    for m, p, s in combos:
+        run_combo(clients[m.name], m, p, s, calls, args.runs, args.golden_runs, args.out_dir)
+    evaluate(Path(args.out_dir), Path(args.out_dir).parent)
+
+
+def _add_run_options(p: argparse.ArgumentParser, golden_runs: int) -> None:
+    p.add_argument("--split", default="all", choices=["all", "golden", "dev"])
+    p.add_argument("--runs", type=int, default=1, help="runs per call")
+    p.add_argument("--golden-runs", type=int, default=golden_runs, help="runs per golden call (spec: 3-5)")
+    p.add_argument("--out-dir", default="results/runs")
+    p.add_argument("--yes", action="store_true", help="skip the cost confirmation prompt")
 
 
 def main(argv: list[str] | None = None) -> None:
     load_dotenv()
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
-    r = sub.add_parser("run", help="run extraction over the manifest calls")
+    r = sub.add_parser("run", help="run one model / prompt / sampling combination")
     r.add_argument("--model", default="gpt4o_mini")
     r.add_argument("--prompt", default="v1")
     r.add_argument("--sampling", default="deterministic")
-    r.add_argument("--split", default="all", choices=["all", "golden", "dev"])
-    r.add_argument("--runs", type=int, default=1)
-    r.add_argument("--out-dir", default="results/runs")
-    r.add_argument("--yes", action="store_true", help="skip the cost confirmation prompt")
+    _add_run_options(r, golden_runs=1)
+    m = sub.add_parser("matrix", help="run every model x prompt x sampling combination, then evaluate")
+    m.add_argument("--models", nargs="+", default=["gpt4o_mini", "qwen3_8b"])
+    m.add_argument("--prompts", nargs="+", default=["v1"])
+    m.add_argument("--samplings", nargs="+", default=["deterministic", "low"])
+    _add_run_options(m, golden_runs=3)
+    e = sub.add_parser("eval", help="compute metrics from results/runs into results/")
+    e.add_argument("--runs-dir", default="results/runs")
+    e.add_argument("--out-dir", default="results")
     args = p.parse_args(argv)
     if args.command == "run":
         run(args)
+    elif args.command == "matrix":
+        matrix(args)
+    else:
+        evaluate(Path(args.runs_dir), Path(args.out_dir))
 
 
 if __name__ == "__main__":

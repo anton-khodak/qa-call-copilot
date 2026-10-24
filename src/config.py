@@ -18,6 +18,7 @@ class ModelConfig:
     price_output_per_1m: float
     timeout_s: float
     max_attempts: int
+    context_tokens: int | None = None  # local backends: context window to request (num_ctx)
 
 
 @dataclass(frozen=True)
