@@ -82,5 +82,17 @@ def test_strict_schema_shape():
         assert obj["required"] == list(obj["properties"])
 
 
+def test_strict_schema_has_no_refs():
+    # OpenAI strict mode rejects "$ref" with sibling keywords such as "description"
+    import json
+
+    s = strict_json_schema()
+    assert "$ref" not in json.dumps(s) and "$defs" not in s
+    domain = s["properties"]["domain"]
+    assert "medicare" in domain["enum"] and domain["description"].startswith("Business domain")
+    item = s["properties"]["objections"]["items"]
+    assert item["additionalProperties"] is False and "price" in item["properties"]["type"]["enum"]
+
+
 def test_schema_version():
     assert SCHEMA_VERSION == "v1"

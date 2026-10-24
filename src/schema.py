@@ -173,6 +173,21 @@ class CallQARecord(_Strict):
     )
 
 
+def _inline_refs(node, defs: dict):
+    if isinstance(node, list):
+        return [_inline_refs(v, defs) for v in node]
+    if not isinstance(node, dict):
+        return node
+    if "$ref" in node:
+        target = defs[node["$ref"].rsplit("/", 1)[-1]]
+        siblings = {k: v for k, v in node.items() if k != "$ref"}
+        return _inline_refs({**target, **siblings}, defs)
+    return {k: _inline_refs(v, defs) for k, v in node.items()}
+
+
 def strict_json_schema() -> dict:
-    """JSON schema passed as structured output to every backend (OpenAI strict-mode compatible)."""
-    return CallQARecord.model_json_schema()
+    """JSON schema passed as structured output to every backend (OpenAI strict-mode compatible).
+    $refs are inlined because strict mode rejects "$ref" with sibling keywords like "description"."""
+    schema = CallQARecord.model_json_schema()
+    defs = schema.pop("$defs", {})
+    return _inline_refs(schema, defs)
