@@ -1,0 +1,25 @@
+[project]
+name = "qa-call-copilot"
+version = "0.1.0"
+description = "Call QA & Compliance Copilot - stage 1: structured extraction"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "openai>=1.40",
+    "huggingface_hub>=0.24",
+    "rapidfuzz>=3",
+    "pyyaml",
+    "python-dotenv",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["live: hits a real API"]
+addopts = "-m 'not live'"
