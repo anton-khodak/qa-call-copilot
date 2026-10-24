@@ -42,6 +42,8 @@ class OllamaClient:
             options["seed"] = sampling.seed
         if self.config.context_tokens:
             options["num_ctx"] = self.config.context_tokens
+        if self.config.max_output_tokens:
+            options["num_predict"] = self.config.max_output_tokens
         body = {
             "model": self.config.model_id,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -67,4 +69,7 @@ class OllamaClient:
         warnings = []
         if self.config.context_tokens and input_tokens >= self.config.context_tokens:
             warnings.append(f"context_full:{input_tokens}")
-        return Completion(data["message"].get("content"), input_tokens, data.get("eval_count") or 0, warnings)
+        output_tokens = data.get("eval_count") or 0
+        if data.get("done_reason") == "length":
+            warnings.append(f"output_truncated:{output_tokens}")
+        return Completion(data["message"].get("content"), input_tokens, output_tokens, warnings)

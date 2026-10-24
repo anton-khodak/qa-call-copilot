@@ -39,6 +39,7 @@ def test_local_config():
     m = load_model("qwen3_8b")
     assert (m.provider, m.model_id, m.price_input_per_1m, m.price_output_per_1m) == ("ollama", "qwen3:8b", 0, 0)
     assert m.context_tokens == 16384 and m.max_attempts == 3 and m.timeout_s >= 300
+    assert m.max_output_tokens == 1024
 
 
 def test_low_sampling():
@@ -55,7 +56,7 @@ def test_request_shape_same_schema_thinking_off():
     assert body["model"] == "qwen3:8b" and body["stream"] is False and body["think"] is False
     assert body["format"] == {"type": "object"}
     assert body["messages"] == [{"role": "system", "content": "SYS"}, {"role": "user", "content": "USER"}]
-    assert body["options"] == {"temperature": 0.3, "top_p": 0.9, "seed": 42, "num_ctx": 16384}
+    assert body["options"] == {"temperature": 0.3, "top_p": 0.9, "seed": 42, "num_ctx": 16384, "num_predict": 1024}
     assert (out.text, out.input_tokens, out.output_tokens, out.warnings) == ('{"x":1}', 900, 120, [])
 
 
@@ -96,3 +97,11 @@ def test_check_ready_model_missing():
 def test_check_ready_server_down():
     with pytest.raises(FatalClientError, match="ollama serve"):
         _client(Server(httpx2.ConnectError("refused"))).check_ready()
+
+
+def test_output_cap_hit_warns():
+    """qwen3 can loop inside the objections list; the num_predict cap ends it and is flagged."""
+    status, body = chat_ok(content='{"objections": [{"type"', out=1024)
+    body["done_reason"] = "length"
+    out = _client(Server((status, body))).complete("S", "U", {}, load_sampling("deterministic"))
+    assert out.warnings == ["output_truncated:1024"]

@@ -19,6 +19,7 @@ class ModelConfig:
     timeout_s: float
     max_attempts: int
     context_tokens: int | None = None  # local backends: context window to request (num_ctx)
+    max_output_tokens: int | None = None  # local backends: generation cap (num_predict); stops runaway loops
 
 
 @dataclass(frozen=True)
