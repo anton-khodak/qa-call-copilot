@@ -33,7 +33,7 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 **Licence constraint (CC BY-NC 4.0, no redistribution):** raw transcripts are NOT committed. The brief requires `data/` with texts and golden set, so `data/` contains:
 - `data/download.py` (or `make data`) — fetches the chosen zips (HTTP range reads) and extracts only the selected calls. The dataset is not gated; `HF_TOKEN` is optional.
 - `data/manifest.csv` — selected call IDs, segment, duration, word count, split (golden / dev). Committed.
-- `data/golden/golden_v1.jsonl` — hand labels (own work), keyed by call ID. Committed.
+- `data/golden/golden_v2.jsonl` — hand labels (own work), keyed by call ID. Committed.
 - `data/raw/` — downloaded transcripts, gitignored.
 - `data/README.md` — dataset described by category (segments, counts, length distribution, source caveats); lecturer accepts this.
 
@@ -107,7 +107,7 @@ Results are committed (outputs contain only already-masked derived data — re-c
 - Budget: ≤ $5 API total; estimate cost before a full run and print it. Local model must run on an ordinary laptop — **Default:** if local runs are too slow, cut repeated runs to the golden set only and note it in REPORT.md.
 
 ## 11. Metrics (`eval.py`)
-Computed against `golden_v1`, per combination:
+Computed against `golden_v2`, per combination:
 - **Per-field accuracy**: exact match for enums/bools; `objections` → precision/recall/F1 on types + `handled` accuracy on matched types; `compliance.*.value` exact match (evidence checked by code, not scored vs golden).
 - **Extracted vs inferred** fields reported separately; inferred enums also as **per-class accuracy**.
 - `call_type` accuracy also on all 36 calls against the source segment.
