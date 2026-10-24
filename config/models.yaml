@@ -1,0 +1,10 @@
+# Prices in USD per 1M tokens; timeouts in seconds; max_attempts includes the first try.
+models:
+  gpt4o_mini:
+    provider: openrouter
+    model_id: openai/gpt-4o-mini
+    base_url: https://openrouter.ai/api/v1
+    price_input_per_1m: 0.15
+    price_output_per_1m: 0.60
+    timeout_s: 60
+    max_attempts: 3

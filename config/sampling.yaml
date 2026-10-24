@@ -1,0 +1,6 @@
+# Seed is passed where the backend supports it.
+sampling:
+  deterministic:
+    temperature: 0.0
+    top_p: 1.0
+    seed: 42
