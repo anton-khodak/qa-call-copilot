@@ -1,15 +1,14 @@
 import json
 
-import openai
 import pytest
 
-from src.clients.base import TransportError
+from src.clients.base import Completion, FatalClientError, RequestError, TransportError
 from src.config import load_model, load_sampling
 from src.extract import ExtractionResult, extract
 from src.prompts import load_prompt
 from src.results import append_jsonl, build_record, cost_usd
 from src.schema import CallQARecord
-from tests.fakes import VALID_JSON, FakeClient, bad_request, status_error, timeout_error, transcript
+from tests.fakes import VALID_JSON, FakeClient, timeout_error, transcript
 from tests.test_schema import VALID
 
 P = load_prompt("v1")
@@ -58,9 +57,14 @@ def test_transport_error_failed():
     assert r.warnings == ["transport_error:APITimeoutError"]
 
 
-def test_bad_request_failed():
-    r = _run(bad_request())
+def test_request_error_failed():
+    r = _run(RequestError("BadRequestError", "bad schema"))
     assert r.status == "failed" and r.warnings == ["request_error:BadRequestError"]
+
+
+def test_backend_warnings_kept():
+    r = _run(Completion(VALID_JSON, 10, 5, ["context_full"]))
+    assert r.status == "valid_first_try" and r.warnings == ["context_full"]
 
 
 def test_checks_appended():
@@ -102,8 +106,6 @@ def test_unexpected_exception_failed_not_raised():
     assert r.status == "failed" and r.warnings == ["unexpected_error:RuntimeError: boom"]
 
 
-@pytest.mark.parametrize("cls,code", [(openai.AuthenticationError, 401), (openai.PermissionDeniedError, 403),
-                                      (openai.APIStatusError, 402)])
-def test_auth_and_billing_errors_propagate(cls, code):
-    with pytest.raises(openai.APIStatusError):
-        _run(status_error(cls, code))
+def test_fatal_client_error_propagates():
+    with pytest.raises(FatalClientError):
+        _run(FatalClientError("AuthenticationError (401)"))

@@ -6,11 +6,12 @@ import httpx2
 import openai
 import pytest
 
-from src.clients.base import TransportError
+from src.clients.base import FatalClientError, RequestError, TransportError
 from src.clients.provider import ProviderClient
 from src.clients.retry import call_with_retry
 from src.config import load_model, load_sampling
 from src.schema import CallQARecord, strict_json_schema
+from tests.fakes import bad_request, status_error
 
 
 class FakeSDK:
@@ -123,3 +124,15 @@ def test_provider_no_choices_retried_then_transport_error():
     with pytest.raises(TransportError) as e:
         _client(fake).complete("S", "U", {}, load_sampling("deterministic"))
     assert fake.calls == 3 and "upstream failed" in str(e.value)
+
+
+def test_provider_400_becomes_request_error():
+    with pytest.raises(RequestError, match="BadRequestError"):
+        _client(FakeSDK(bad_request())).complete("S", "U", {}, load_sampling("deterministic"))
+
+
+@pytest.mark.parametrize("cls,code", [(openai.AuthenticationError, 401), (openai.PermissionDeniedError, 403),
+                                      (openai.APIStatusError, 402)])
+def test_provider_auth_and_billing_become_fatal(cls, code):
+    with pytest.raises(FatalClientError):
+        _client(FakeSDK(status_error(cls, code))).complete("S", "U", {}, load_sampling("deterministic"))

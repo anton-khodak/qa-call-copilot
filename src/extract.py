@@ -4,17 +4,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Literal
 
-import openai
 import pydantic
 
 from src.checks import run_checks
-from src.clients.base import ModelClient, TransportError
+from src.clients.base import FatalClientError, ModelClient, RequestError, TransportError
 from src.config import SamplingConfig
 from src.dataset import Transcript
 from src.prompts import Prompt, build_user_message
 from src.schema import CallQARecord, strict_json_schema
-
-FATAL_STATUS = (401, 402, 403)  # bad key, no credits, forbidden: every later call would fail too
 
 Status = Literal["valid_first_try", "valid_after_repair", "failed"]
 
@@ -48,10 +45,10 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
         completion = client.complete(prompt.text, build_user_message(transcript.text), strict_json_schema(), sampling)
     except TransportError as e:
         return ExtractionResult("failed", None, None, [f"transport_error:{type(e.last).__name__}"], _ms(start))
-    except openai.APIStatusError as e:
-        if e.status_code in FATAL_STATUS:
-            raise
-        return ExtractionResult("failed", None, None, [f"request_error:{type(e).__name__}"], _ms(start))
+    except RequestError as e:
+        return ExtractionResult("failed", None, None, [f"request_error:{e.kind}"], _ms(start))
+    except FatalClientError:
+        raise
     except Exception as e:  # one bad response must not stop a paid multi-call run
         return ExtractionResult("failed", None, None, [f"unexpected_error:{type(e).__name__}: {e}"], _ms(start))
     latency = _ms(start)
@@ -59,8 +56,8 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
 
     record, error = validate_output(completion.text)
     if record is None:
-        return ExtractionResult("failed", None, completion.text, [error], latency, **tokens)
-    warnings = run_checks(record, transcript.text, transcript.domain)
+        return ExtractionResult("failed", None, completion.text, completion.warnings + [error], latency, **tokens)
+    warnings = completion.warnings + run_checks(record, transcript.text, transcript.domain)
     return ExtractionResult("valid_first_try", record.model_dump(mode="json"), completion.text, warnings, latency, **tokens)
 
 

@@ -38,6 +38,8 @@ class FakeClient:
         item = self.items.pop(0)
         if isinstance(item, BaseException):
             raise item
+        if isinstance(item, Completion):
+            return item
         return Completion(item, *self.tokens)
 
 

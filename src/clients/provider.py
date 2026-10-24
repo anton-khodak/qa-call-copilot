@@ -4,7 +4,7 @@ import time
 
 import openai
 
-from src.clients.base import Completion
+from src.clients.base import Completion, FatalClientError, RequestError
 from src.clients.retry import call_with_retry
 from src.config import ModelConfig, SamplingConfig
 
@@ -13,6 +13,8 @@ from src.config import ModelConfig, SamplingConfig
 class EmptyResponseError(Exception):
     """HTTP 200 without choices: OpenRouter reports upstream failures this way, with an "error" field."""
 
+
+FATAL_STATUS = (401, 402, 403)  # bad key, no credits, forbidden
 
 RETRYABLE = (
     openai.APITimeoutError,
@@ -48,7 +50,12 @@ class ProviderClient:
                 raise EmptyResponseError(str(getattr(resp, "error", None) or "no choices in response"))
             return resp
 
-        resp = call_with_retry(call, self.config.max_attempts, RETRYABLE, sleep=self.sleep)
+        try:
+            resp = call_with_retry(call, self.config.max_attempts, RETRYABLE, sleep=self.sleep)
+        except openai.APIStatusError as e:
+            if e.status_code in FATAL_STATUS:
+                raise FatalClientError(f"{type(e).__name__} ({e.status_code}); check key and credits") from e
+            raise RequestError(type(e).__name__, str(e)) from e
         usage = resp.usage
         return Completion(
             text=resp.choices[0].message.content,

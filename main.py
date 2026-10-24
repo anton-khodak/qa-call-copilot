@@ -7,10 +7,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import openai
 from dotenv import load_dotenv
 
-from src.clients.base import ModelClient
+from src.clients.base import FatalClientError, ModelClient
 from src.clients.provider import ProviderClient
 from src.config import ModelConfig, load_model, load_sampling
 from src.dataset import Transcript, load_calls, raw_path, read_manifest
@@ -71,9 +70,8 @@ def run(args: argparse.Namespace) -> None:
         for run_idx in range(args.runs):
             try:
                 result = extract(client, t, prompt, sampling)
-            except openai.APIStatusError as e:
-                raise SystemExit(f"aborting run: {type(e).__name__} ({e.status_code}); check key and credits. "
-                                 f"Partial results in {partial}")
+            except FatalClientError as e:
+                raise SystemExit(f"aborting run: {e}. Partial results in {partial}")
             record = build_record(run_id, t, model, prompt, sampling, run_idx, result)
             append_jsonl(partial, record)
             statuses[result.status] += 1
