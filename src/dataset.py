@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO_ID = "AIxBlock/92k-real-world-call-center-scripts-english"
 DOMAIN_ZIPS = {
-    "medicare": "medicare_inbound.zip",
+    "medicare": "insurance_outbound.zip",
     "auto_insurance": "auto_insurance_customer_service_inbound.zip",
     "home_services": "home_service_inbound.zip",
 }

@@ -107,3 +107,8 @@ def test_download_uses_existing_manifest(tmp_path, monkeypatch):
     assert sorted(read) == sorted(r.member for r in rows)
     assert (tmp_path / "raw" / "medicare" / "a.json").exists()
     assert read_manifest(manifest) == rows
+
+
+def test_medicare_source_is_insurance_outbound():
+    # medicare_inbound.zip is ~95% non-Medicare (vet clinics etc.); insurance_outbound.zip is ~96% Medicare
+    assert dataset.DOMAIN_ZIPS["medicare"] == "insurance_outbound.zip"

@@ -10,19 +10,24 @@ Source: [CallCenterEN (AIxBlock)](https://huggingface.co/datasets/AIxBlock/92k-r
 
 | Domain | Source zip | Calls available | Selected | Golden | Dev |
 |---|---|---|---|---|---|
-| medicare | `medicare_inbound.zip` | 61,513 | 12 | 4 | 8 |
+| medicare | `insurance_outbound.zip` | 4,005 | 12 | 4 | 8 |
 | auto_insurance | `auto_insurance_customer_service_inbound.zip` | 1,749 | 12 | 3 | 9 |
 | home_services | `home_service_inbound.zip` | 11,407 | 12 | 3 | 9 |
 | **total** | | | **36** | **10** | **26** |
+
+### Source-label caveats
+
+- `medicare_inbound.zip` is **not** used: in a random sample of 40 calls only 2 mentioned Medicare (12 were veterinary clinics, the rest other service calls). `insurance_outbound.zip` is used for Medicare instead (24 of 25 sampled calls mention Medicare), so Medicare calls are **outbound**.
+- `home_service_inbound.zip` includes some auto-glass repair calls (insurance claims for windshields), so the source domain is not perfect ground truth for `domain`.
 
 ## Length distribution
 
 | Domain | Duration min / median / max (s) | Words min / median / max |
 |---|---|---|
-| medicare | 194 / 318 / 719 | 81 / 431 / 1,682 |
+| medicare | 149 / 298 / 651 | 62 / 603 / 1,346 |
 | auto_insurance | 236 / 310 / 3,482 | 85 / 536 / 7,763 |
 | home_services | 123 / 224 / 830 | 71 / 338 / 1,424 |
-| all | 123 / 303 / 3,482 | 71 / 460 / 7,763 |
+| all | 123 / 292 / 3,482 | 62 / 531 / 7,763 |
 
 ## Files
 
