@@ -4,3 +4,8 @@ data/raw/
 .venv/
 __pycache__/
 *.partial
+CLAUDE.md
+.pytest_cache/
+*.tmp
+data/golden/*.bak.*
+results/aborted/

@@ -1,0 +1,355 @@
+{
+ "2021-08-18-14-54-00_a6f49e6c-2f9d-4696-827a-126a54081d14_v27oR2TcqWVPT_myxJ_ovsaJQ0S7qL_tiMK40LYfj76-QtWldzB1wckQ": {
+  "direction": {
+   "human": "unknown",
+   "opus": "unknown",
+   "choice": "opus"
+  },
+  "outcome": {
+   "human": "other",
+   "opus": "other",
+   "astra": "callback",
+   "history": [
+    {
+     "human": "callback",
+     "opus": "other",
+     "choice": "opus"
+    }
+   ],
+   "choice": "human"
+  },
+  "objections": {
+   "human": [
+    {
+     "type": "not_eligible",
+     "handled": true
+    }
+   ],
+   "opus": [],
+   "choice": "opus",
+   "astra": []
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "yes",
+    "evidence": "Now what we do here is help those that are on Medicare just review their benefits to make sure you're receiving all of the Medicare benefits and savings available to you."
+   },
+   "opus": {
+    "value": "not_applicable",
+    "evidence": null
+   },
+   "choice": "opus"
+  }
+ },
+ "2021-08-19-21-16-45_0ff1b4e8-9234-4954-9847-5a602deb7673_v2bRSB6k4rNSWPOP3dXneovEfY7YKVYsDunzLGBPst0XZuS2hX24eOVA_-_Copy": {
+  "direction": {
+   "human": "inbound",
+   "opus": "unknown",
+   "choice": "opus"
+  },
+  "objections": {
+   "human": [
+    {
+     "type": "price",
+     "handled": false
+    },
+    {
+     "type": "already_covered",
+     "handled": true
+    },
+    {
+     "type": "need_to_think",
+     "handled": true
+    },
+    {
+     "type": "distrust",
+     "handled": true
+    },
+    {
+     "type": "timing",
+     "handled": true
+    }
+   ],
+   "opus": [
+    {
+     "type": "distrust",
+     "handled": true
+    },
+    {
+     "type": "already_covered",
+     "handled": true
+    },
+    {
+     "type": "need_to_think",
+     "handled": true
+    },
+    {
+     "type": "timing",
+     "handled": true
+    },
+    {
+     "type": "price",
+     "handled": false
+    }
+   ],
+   "astra": [
+    {
+     "type": "timing",
+     "handled": true
+    },
+    {
+     "type": "already_covered",
+     "handled": true
+    },
+    {
+     "type": "distrust",
+     "handled": true
+    },
+    {
+     "type": "need_to_think",
+     "handled": true
+    },
+    {
+     "type": "price",
+     "handled": true
+    }
+   ],
+   "history": [
+    {
+     "human": [
+      {
+       "type": "price",
+       "handled": true
+      },
+      {
+       "type": "need_to_think",
+       "handled": true
+      },
+      {
+       "type": "distrust",
+       "handled": true
+      }
+     ],
+     "opus": [
+      {
+       "type": "distrust",
+       "handled": true
+      },
+      {
+       "type": "already_covered",
+       "handled": true
+      },
+      {
+       "type": "need_to_think",
+       "handled": true
+      },
+      {
+       "type": "timing",
+       "handled": true
+      },
+      {
+       "type": "price",
+       "handled": false
+      }
+     ],
+     "choice": "opus"
+    }
+   ],
+   "choice": "astra"
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "yes",
+    "evidence": "What we do here is help individuals that'on Medicare review their benefits to see if you can increase your savings or benefits at this time."
+   },
+   "opus": {
+    "value": "no",
+    "evidence": null
+   },
+   "choice": "opus"
+  },
+  "outcome": {
+   "human": "other",
+   "opus": "not_interested",
+   "astra": "not_interested",
+   "choice": "human"
+  }
+ },
+ "2021-08-25-15-00-51_b3ca41a5-66bc-4f13-a606-4e4e3b23d759_v2x3p1bSa8iuP1T8w5WBdC85uYZSdRxOZCCEXPXRmWAQ_D-pUIHmTEmg_-_Copy": {
+  "direction": {
+   "human": "inbound",
+   "opus": "outbound",
+   "choice": "opus"
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "yes",
+    "evidence": "Now, before I go over this information, I do have to get your verbal agreement that it'okay for me to review these different plans [DRUG] your area."
+   },
+   "opus": {
+    "value": "no",
+    "evidence": null
+   },
+   "choice": "opus"
+  },
+  "agent_handoff": {
+   "human": true,
+   "opus": false,
+   "choice": "opus"
+  },
+  "objections": {
+   "human": [],
+   "opus": [],
+   "astra": [
+    {
+     "type": "price",
+     "handled": true
+    }
+   ],
+   "choice": "human"
+  }
+ },
+ "DMEMED_rmbpo18_20211221-110629_5022879865_4603172-all": {
+  "call_type": {
+   "human": "plan_sales",
+   "opus": "medical_equipment",
+   "choice": "opus"
+  },
+  "outcome": {
+   "human": "sale",
+   "opus": "sale",
+   "astra": "callback",
+   "history": [
+    {
+     "human": "callback",
+     "opus": "sale",
+     "choice": "opus"
+    }
+   ],
+   "choice": "human"
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "yes",
+    "evidence": "So additionally, Mrs. [PERSON_NAME] [PERSON_NAME] [PERSON_NAME], I want to confirm with you that you are officially opting in to receive information and a follow up phone call regarding [MEDICAL_PROCESS] [MEDICAL_PROCESS] [MEDICAL_PROCESS]."
+   },
+   "opus": {
+    "value": "not_applicable",
+    "evidence": null
+   },
+   "choice": "opus"
+  }
+ },
+ "2021-08-27-19-48-40_6468ba97-7563-4e43-bebf-3f87ec6599f4_RGBDF757ED5CF6EF1A5F8641AC8A3DE548EF437EEE5CK38K01": {
+  "outcome": {
+   "human": "other",
+   "opus": "callback",
+   "choice": "opus"
+  },
+  "objections": {
+   "human": [
+    {
+     "type": "already_covered",
+     "handled": true
+    }
+   ],
+   "opus": [],
+   "choice": "opus"
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "yes",
+    "evidence": "What we do here is make sure that you are receiving all of the available Medicare benefits. And so what I do is verify a few items and then pull up the available options in your area."
+   },
+   "opus": {
+    "value": "no",
+    "evidence": null
+   },
+   "choice": "opus"
+  }
+ },
+ "DMEMED_rmbpo17_20211117-152054_8473130782_4815066-all": {
+  "call_type": {
+   "human": "member_service",
+   "opus": "plan_sales",
+   "choice": "opus"
+  },
+  "outcome": {
+   "human": "other",
+   "opus": "other",
+   "astra": "not_interested",
+   "history": [
+    {
+     "human": "issue_resolved",
+     "opus": "other",
+     "choice": "opus"
+    }
+   ],
+   "choice": "human"
+  },
+  "agent_handoff": {
+   "human": false,
+   "opus": true,
+   "choice": "opus"
+  },
+  "direction": {
+   "human": "unknown",
+   "opus": "outbound",
+   "astra": "unknown",
+   "choice": "human"
+  },
+  "objections": {
+   "human": [],
+   "opus": [],
+   "astra": [
+    {
+     "type": "other",
+     "handled": true
+    }
+   ],
+   "choice": "human"
+  },
+  "compliance.disclaimer_before_benefits": {
+   "human": {
+    "value": "not_applicable",
+    "evidence": null
+   },
+   "opus": {
+    "value": "not_applicable",
+    "evidence": null
+   },
+   "astra": {
+    "value": "no",
+    "evidence": null
+   },
+   "choice": "human"
+  }
+ },
+ "4104666105": {
+  "outcome": {
+   "human": "transfer",
+   "opus": "transfer",
+   "astra": "other",
+   "choice": "human"
+  }
+ },
+ "5169932905": {
+  "outcome": {
+   "human": "transfer",
+   "opus": "transfer",
+   "astra": "other",
+   "choice": "human"
+  },
+  "objections": {
+   "human": [],
+   "opus": [],
+   "astra": [
+    {
+     "type": "other",
+     "handled": true
+    }
+   ],
+   "choice": "human"
+  }
+ }
+}

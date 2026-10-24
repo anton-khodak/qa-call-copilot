@@ -66,6 +66,19 @@
   .warn { color: var(--warn); font-size: 12px; }
   #bar { position: fixed; right: 0; bottom: 0; width: min(520px, 100%); padding: 10px 20px; display: flex; gap: 8px;
          align-items: center; background: var(--panel); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  #conflicts { margin-bottom: 14px; }
+  #conflicts h2 { font-size: 14px; margin: 0 0 8px; }
+  .conflict { background: var(--panel); border: 1px solid var(--warn); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .conflict.resolved { border-color: var(--line); }
+  .conflict h3 { margin: 0 0 6px; font-size: 13px; }
+  .vals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+  .val { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  .val.chosen { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .val b { display: block; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+  .why { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+  .why b { color: var(--text); }
+  .tab .badge { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 4px; border-radius: 8px;
+                background: var(--warn); color: #fff; font-size: 10px; text-align: center; }
   #status { flex: 1; font-size: 12px; color: var(--muted); }
   #status.err { color: var(--err); }
   #status.ok { color: var(--ok); }
@@ -77,7 +90,7 @@
 </head>
 <body>
 <header>
-  <h1>Golden v1</h1>
+  <h1>Golden v2</h1>
   <div id="tabs"></div>
   <div id="progress"></div>
 </header>
@@ -87,7 +100,7 @@
     <input id="search" type="text" placeholder="Highlight in transcript…">
     <div id="transcript"></div>
   </section>
-  <section id="right"><form id="form" onsubmit="return false"></form></section>
+  <section id="right"><div id="conflicts"></div><form id="form" onsubmit="return false"></form></section>
 </main>
 <div id="bar">
   <div id="status"></div>
@@ -250,13 +263,72 @@ function renderTranscript() {
   $("#transcript").innerHTML = esc(text).replace(re, m => `<mark>${m}</mark>`);
 }
 
+const open_ = c => c.conflicts.filter(x => !x.choice).length;
+
 function renderTabs() {
   $("#tabs").innerHTML = S.calls.map((c, i) =>
-    `<button class="tab ${i === cur ? "active" : ""} ${c.errors.length ? "" : "done"}" data-i="${i}" title="${esc(c.call_id)}">
-      <span class="dot"></span>${i + 1}. ${esc(c.call_id)}</button>`).join("");
+    `<button class="tab ${i === cur ? "active" : ""} ${c.errors.length || open_(c) ? "" : "done"}" data-i="${i}" title="${esc(c.call_id)}">
+      <span class="dot"></span>${i + 1}. ${esc(c.call_id)}${open_(c) ? `<span class="badge">${open_(c)}</span>` : ""}</button>`).join("");
   document.querySelectorAll(".tab").forEach(b => b.onclick = async () => { await save(); show(+b.dataset.i); });
   const done = S.calls.filter(c => !c.errors.length).length;
-  $("#progress").textContent = `${done}/${S.calls.length} complete`;
+  const left = S.calls.reduce((n, c) => n + open_(c), 0);
+  const all = S.calls.reduce((n, c) => n + c.conflicts.length, 0);
+  $("#progress").textContent = `${done}/${S.calls.length} complete` +
+    (all ? ` · ${left} of ${all} model conflicts open` : "");
+}
+
+function fmt(field, v) {
+  if (v === undefined || v === "") return "(blank)";
+  if (field === "objections") return v.length ? v.map(o => `${o.type} (${o.handled ? "handled" : "not handled"})`).join(", ") : "none";
+  if (field.startsWith("compliance.")) return JSON.stringify(v.value) + (v.evidence ? ` — “${v.evidence}”` : "");
+  return JSON.stringify(v);
+}
+
+// mirrors comparable() in label_app.py: compliance compares .value, objections ignore order
+function key(field, v) {
+  if (field.startsWith("compliance.")) return JSON.stringify(v && v.value);
+  if (field === "objections" && Array.isArray(v)) return JSON.stringify(v.map(o => [o.type, o.handled]).sort());
+  return JSON.stringify(v);
+}
+const title = n => n[0].toUpperCase() + n.slice(1);
+
+function renderConflicts() {
+  const c = S.calls[cur], names = S.annotators.map(title).join(" / ");
+  if (!c.conflicts.length) {
+    $("#conflicts").innerHTML = S.calls.some(x => x.conflicts.length) ? `<h2>No conflicts with ${names} on this call ✓</h2>` : "";
+    return;
+  }
+  $("#conflicts").innerHTML = `<h2>Conflicts with ${names} (${open_(c)} open)</h2>` + c.conflicts.map(x => {
+    const names = Object.keys(x.values);
+    const card = (who, label, v) => `<div class="val ${x.choice === who ? "chosen" : ""}"><b>${label}</b>${esc(fmt(x.field, v))}</div>`;
+    const why = names.map(n => `<p class="why"><b>${title(n)}${key(x.field, x.values[n]) === key(x.field, x.human) ? " (agrees with you)" : ""}:</b>
+      ${esc((c.reasoning[n] || {})[x.field] || "(no reasoning given)")}</p>`).join("");
+    const btn = (who, label) => `<button type="button" data-field="${esc(x.field)}" data-choice="${who}" ${x.choice === who ? "class=primary" : ""}>${label}</button>`;
+    return `<div class="conflict ${x.choice ? "resolved" : ""}">
+      <h3>${esc(x.field)}</h3>
+      <div class="vals" style="grid-template-columns: repeat(${names.length + 1}, 1fr)">
+        ${card("human", "Yours", x.human)}${names.map(n => card(n, title(n), x.values[n])).join("")}
+      </div>
+      ${why}
+      <div class="row">
+        ${btn("human", "Keep mine")}${names.filter(n => key(x.field, x.values[n]) !== key(x.field, x.human))
+          .map(n => btn(n, "Take " + title(n))).join("")}
+        ${x.choice ? `<span class="help" style="margin:0">resolved</span>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("#conflicts [data-choice]").forEach(b => b.onclick = () => resolveField(b.dataset.field, b.dataset.choice));
+}
+
+async function resolveField(field, choice) {
+  await save();
+  const c = S.calls[cur];
+  const r = await fetch("/api/resolve", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({call_id: c.call_id, field, choice})});
+  const res = await r.json();
+  if (!r.ok) { $("#status").className = "err"; $("#status").textContent = res.error; return; }
+  Object.assign(c, {label: res.label, errors: res.errors, conflicts: res.conflicts});
+  fill(c.label); showErrors(c.errors); renderConflicts(); renderTabs();
 }
 
 function showErrors(errors) {
@@ -276,7 +348,7 @@ function show(i) {
   cur = i;
   const c = S.calls[i];
   $("#meta").textContent = `Call ${i + 1} of ${S.calls.length} · ${c.call_id} · ${c.text.split(/\s+/).filter(Boolean).length} words`;
-  renderTranscript(); fill(c.label); showErrors(c.errors); renderTabs();
+  renderTranscript(); fill(c.label); showErrors(c.errors); renderConflicts(); renderTabs();
   $("#left").scrollTop = 0; $("#right").scrollTop = 0;
 }
 
@@ -308,7 +380,7 @@ window.addEventListener("beforeunload", e => { if (dirty) e.preventDefault(); })
   S = await (await fetch("/api/state")).json();
   S.rulesMap = parseRules(S.rules);
   buildForm();
-  const firstTodo = S.calls.findIndex(c => c.errors.length);
+  const firstTodo = S.calls.findIndex(c => c.errors.length || open_(c));
   show(firstTodo < 0 ? 0 : firstTodo);
 })();
 </script>
