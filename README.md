@@ -1,6 +1,16 @@
 # Call QA & Compliance Copilot — stage 1: structured extraction
 
-Turns raw call-centre transcripts ([CallCenterEN](https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english)) into validated JSON QA records (`src/schema.py`) using an LLM with structured output.
+Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english)) into validated JSON QA records (`src/schema.py`) using an LLM with structured output, and measures how well different models, prompts and sampling settings do it.
+
+## For reviewers
+
+- **What and why:** `spec.md` (the assignment spec; the revision note at the top explains the Medicare-only scope).
+- **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
+- **Prompt:** `prompts/extract_v1.md`, history in `prompts/CHANGELOG.md`.
+- **Golden set:** 10 calls in `data/golden/golden_v2.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus_v2.jsonl`, `astra_v2.jsonl`; every decision in `review_v2.json`).
+- **Results:** `results/metrics.md` (summary), `results/per_class.csv`, raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only) and qwen3 runs from before the Ollama client showed the schema to the model.
+- **Status:** steps 1-2 (baseline, local model, sampling configs, metrics) done; step 3 (prompt v2, repair) and step 4 (report) next.
+
 
 ## Install
 
@@ -34,10 +44,11 @@ Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with mod
 
 ## Layout
 
-- `src/schema.py`: Pydantic QA record (`schema_version = "v1"`)
+- `src/schema.py`: Pydantic QA record (`SCHEMA_VERSION = "v2"`)
 - `src/dataset.py`, `data/download.py`: call selection, manifest, transcript loading
 - `src/clients/`: model interface, OpenRouter backend, Ollama backend, retry/backoff
-- `src/eval.py`: metrics against the golden set and source domains
+- `src/eval.py`: metrics against the golden set and source call types
+- `src/label_app.py`: local labelling and adjudication UI for the golden set (`make label`)
 - `src/extract.py`: model call, schema validation, code checks (`src/checks.py`)
 - `prompts/`: versioned prompts and `CHANGELOG.md`
 - `config/`: models (prices, timeouts, retries) and sampling configs
