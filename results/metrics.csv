@@ -1,0 +1,5 @@
+model,provider,prompt_version,sampling_name,n_records,n_calls,valid_first_try_pct,valid_after_repair_pct,failed_pct,latency_p50_ms,latency_p95_ms,cost_per_1k_usd,domain_acc_all,acc_domain,acc_direction,acc_customer_intent,acc_outcome,acc_next_action,acc_agent_handoff,acc_recording_disclosed,acc_disclaimer_before_benefits,obj_precision,obj_recall,obj_f1,obj_handled_acc,acc_extracted,acc_inferred,golden_calls,golden_runs
+openai/gpt-4o-mini,openrouter,v1,deterministic,56,36,100.0,0.0,0.0,2069,3057,0.4837044642857143,0.8055555555555556,,,,,,,,,,,,,,,,
+openai/gpt-4o-mini,openrouter,v1,low,56,36,100.0,0.0,0.0,2005,2671,0.48312589285714286,0.8333333333333334,,,,,,,,,,,,,,,,
+qwen3:8b,ollama,v1,deterministic,56,36,98.21428571428571,0.0,1.7857142857142858,9653,19260,0.0,0.6111111111111112,,,,,,,,,,,,,,,,
+qwen3:8b,ollama,v1,low,56,36,100.0,0.0,0.0,10471,19853,0.0,0.6388888888888888,,,,,,,,,,,,,,,,

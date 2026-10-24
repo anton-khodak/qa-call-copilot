@@ -107,3 +107,20 @@ def test_evaluate_writes_outputs(tmp_path):
         assert next(csv.DictReader(f))["model"] == "m"
     assert (tmp_path / "per_class.csv").exists()
     assert "| m |" in (tmp_path / "metrics.md").read_text()
+
+
+def test_evaluate_skips_incomplete_golden_labels(tmp_path, capsys):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    (runs / "r1.jsonl").write_text(json.dumps(rec("a")) + json.dumps(rec("b")).join(["\n", "\n"]))
+    manifest = tmp_path / "manifest.csv"
+    manifest.write_text("call_id,domain,zip_name,member,file_size,audio_duration,word_count,split\n"
+                        "a,medicare,z,m,1,,,golden\nb,medicare,z,m,1,,,golden\n")
+    golden = tmp_path / "golden.jsonl"
+    blank = {**VALID, "outcome": "", "agent_handoff": ""}  # labelling in progress
+    golden.write_text(json.dumps({"call_id": "a", "label": VALID}) + "\n" + json.dumps({"call_id": "b", "label": blank}) + "\n")
+
+    rows = evaluate(runs, tmp_path, golden_path=golden, manifest=manifest)
+
+    assert rows[0]["golden_calls"] == 1 and rows[0]["acc_outcome"] == 1.0
+    assert "1 of 2 golden labels incomplete" in capsys.readouterr().out

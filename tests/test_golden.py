@@ -4,7 +4,7 @@ import pydantic
 import pytest
 
 from src.dataset import ManifestRow, write_manifest
-from src.golden import load_golden
+from src.golden import load_golden, load_golden_partial
 from tests.test_schema import VALID
 
 
@@ -50,3 +50,9 @@ def test_blank_lines_ignored(tmp_path, manifest):
     p = _golden(tmp_path, {"call_id": "g1", "label": VALID})
     p.write_text(p.read_text() + "\n")
     assert len(load_golden(p, manifest)) == 1
+
+
+def test_non_strict_skips_invalid_labels(tmp_path, manifest):
+    p = _golden(tmp_path, {"call_id": "g1", "label": {**VALID, "outcome": ""}})
+    labels, skipped = load_golden_partial(p, manifest)
+    assert labels == {} and skipped == ["g1"]

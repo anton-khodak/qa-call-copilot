@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from src.dataset import read_manifest
-from src.golden import load_golden
+from src.golden import load_golden_partial
 from src.schema import CallQARecord
 
 INFERRED = ["domain", "direction", "customer_intent", "outcome", "next_action"]
@@ -179,7 +179,10 @@ def evaluate(
     manifest: Path = Path("data/manifest.csv"),
 ) -> list[dict]:
     source_domains = {r.call_id: r.domain for r in read_manifest(manifest)}
-    golden = load_golden(golden_path, manifest) if Path(golden_path).exists() else {}
+    golden, skipped = load_golden_partial(golden_path, manifest) if Path(golden_path).exists() else ({}, [])
+    if skipped:
+        print(f"{len(skipped)} of {len(golden) + len(skipped)} golden labels incomplete or invalid, not scored: "
+              f"{', '.join(skipped)}")
     rows, per_class_rows = [], []
     for combo, records in sorted(latest_per_combo(load_runs(runs_dir)).items()):
         rows.append(combo_metrics(records, source_domains, golden))
