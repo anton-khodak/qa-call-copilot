@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import openai
 from dotenv import load_dotenv
 
 from src.clients.base import ModelClient
@@ -63,16 +64,23 @@ def run(args: argparse.Namespace) -> None:
 
     run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{model.name}_{prompt.version}_{sampling.name}"
     out = Path(args.out_dir) / f"{run_id}.jsonl"
+    # Written as .partial and renamed when complete, so an aborted run never looks like a result set.
+    partial = out.with_suffix(".jsonl.partial")
     statuses, total = collections.Counter(), 0.0
     for t in calls:
         for run_idx in range(args.runs):
-            result = extract(client, t, prompt, sampling)
+            try:
+                result = extract(client, t, prompt, sampling)
+            except openai.APIStatusError as e:
+                raise SystemExit(f"aborting run: {type(e).__name__} ({e.status_code}); check key and credits. "
+                                 f"Partial results in {partial}")
             record = build_record(run_id, t, model, prompt, sampling, run_idx, result)
-            append_jsonl(out, record)
+            append_jsonl(partial, record)
             statuses[result.status] += 1
             total += record["cost_usd"]
             flags = f" {result.warnings}" if result.warnings else ""
             print(f"{t.call_id} [{run_idx}] {result.status} {result.latency_ms}ms{flags}")
+    partial.rename(out)
     print(f"done: {dict(statuses)}, cost ${total:.4f}, results in {out}")
 
 

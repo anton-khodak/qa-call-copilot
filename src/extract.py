@@ -14,6 +14,8 @@ from src.dataset import Transcript
 from src.prompts import Prompt, build_user_message
 from src.schema import CallQARecord, strict_json_schema
 
+FATAL_STATUS = (401, 402, 403)  # bad key, no credits, forbidden: every later call would fail too
+
 Status = Literal["valid_first_try", "valid_after_repair", "failed"]
 
 
@@ -47,7 +49,11 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
     except TransportError as e:
         return ExtractionResult("failed", None, None, [f"transport_error:{type(e.last).__name__}"], _ms(start))
     except openai.APIStatusError as e:
+        if e.status_code in FATAL_STATUS:
+            raise
         return ExtractionResult("failed", None, None, [f"request_error:{type(e).__name__}"], _ms(start))
+    except Exception as e:  # one bad response must not stop a paid multi-call run
+        return ExtractionResult("failed", None, None, [f"unexpected_error:{type(e).__name__}: {e}"], _ms(start))
     latency = _ms(start)
     tokens = dict(input_tokens=completion.input_tokens, output_tokens=completion.output_tokens)
 

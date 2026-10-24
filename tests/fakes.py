@@ -39,3 +39,8 @@ class FakeClient:
         if isinstance(item, BaseException):
             raise item
         return Completion(item, *self.tokens)
+
+
+def status_error(cls, code):
+    req = httpx2.Request("POST", "https://openrouter.ai")
+    return cls("err", response=httpx2.Response(code, request=req), body=None)

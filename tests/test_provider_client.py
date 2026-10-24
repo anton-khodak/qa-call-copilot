@@ -114,3 +114,12 @@ def test_live_smoke():
     out = c.complete("Extract a QA record.", transcript, strict_json_schema(), load_sampling("deterministic"))
     CallQARecord.model_validate(json.loads(out.text))
     assert out.input_tokens > 0
+
+
+def test_provider_no_choices_retried_then_transport_error():
+    # OpenRouter can return HTTP 200 with {"error": ...} and no choices when the upstream fails
+    fake = FakeSDK()
+    fake.response = SimpleNamespace(choices=None, usage=None, error={"message": "upstream failed"})
+    with pytest.raises(TransportError) as e:
+        _client(fake).complete("S", "U", {}, load_sampling("deterministic"))
+    assert fake.calls == 3 and "upstream failed" in str(e.value)

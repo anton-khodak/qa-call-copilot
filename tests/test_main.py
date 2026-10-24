@@ -40,3 +40,17 @@ def test_run_requires_raw_data(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "RAW_DIR", tmp_path / "missing")
     with pytest.raises(SystemExit, match="make data"):
         main.check_raw_data()
+
+
+def test_auth_error_aborts_run_without_results_file(tmp_path, monkeypatch):
+    import openai
+    from tests.fakes import status_error
+
+    client = FakeClient(VALID_JSON, status_error(openai.AuthenticationError, 401))
+    monkeypatch.setattr(main, "make_client", lambda cfg: client)
+    monkeypatch.setattr(main, "load_calls", lambda split: [transcript(call_id="a"), transcript(call_id="b")])
+    monkeypatch.setattr(main, "check_raw_data", lambda: None)
+
+    with pytest.raises(SystemExit, match="AuthenticationError"):
+        main.main(["run", "--yes", "--out-dir", str(tmp_path)])
+    assert list(tmp_path.glob("*.jsonl")) == []

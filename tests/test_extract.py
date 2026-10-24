@@ -1,5 +1,6 @@
 import json
 
+import openai
 import pytest
 
 from src.clients.base import TransportError
@@ -8,7 +9,7 @@ from src.extract import ExtractionResult, extract
 from src.prompts import load_prompt
 from src.results import append_jsonl, build_record, cost_usd
 from src.schema import CallQARecord
-from tests.fakes import VALID_JSON, FakeClient, bad_request, timeout_error, transcript
+from tests.fakes import VALID_JSON, FakeClient, bad_request, status_error, timeout_error, transcript
 from tests.test_schema import VALID
 
 P = load_prompt("v1")
@@ -94,3 +95,15 @@ def test_append_jsonl(tmp_path):
     append_jsonl(p, _record())
     lines = p.read_text().splitlines()
     assert len(lines) == 2 and all(json.loads(l)["run_id"] == "run1" for l in lines)
+
+
+def test_unexpected_exception_failed_not_raised():
+    r = _run(RuntimeError("boom"))
+    assert r.status == "failed" and r.warnings == ["unexpected_error:RuntimeError: boom"]
+
+
+@pytest.mark.parametrize("cls,code", [(openai.AuthenticationError, 401), (openai.PermissionDeniedError, 403),
+                                      (openai.APIStatusError, 402)])
+def test_auth_and_billing_errors_propagate(cls, code):
+    with pytest.raises(openai.APIStatusError):
+        _run(status_error(cls, code))
