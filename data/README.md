@@ -2,7 +2,7 @@
 
 Source: [CallCenterEN (AIxBlock)](https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english), English call-centre transcripts in AssemblyAI JSON (`text`, `confidence`, `audio_duration`, `words` with timestamps, `redacted_pii_policies`). PII is already masked (`[PERSON_NAME]`, `[MONEY_AMOUNT]`, `[DATE]`, …). No speaker labels. The dataset is not gated.
 
-**Licence: CC BY-NC 4.0, and the dataset card adds "Commercial use, resale, or redistribution is prohibited."** Raw transcripts are therefore not committed; `make data` downloads exactly the calls in `manifest.csv` into `data/raw/` (gitignored).
+**Licence and attribution:** the 36 transcripts in `raw/` are unmodified files from CallCenterEN by AIxBlock (Gaurav Chawla, Raghu Banda, Caleb DeLeeuw; [paper](https://arxiv.org/abs/2507.02958)), licensed [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). They are included for non-commercial coursework only. Note that the dataset card also says "Commercial use, resale, or redistribution is prohibited." `make data` re-downloads exactly the calls in `manifest.csv` if any are missing.
 
 ## Scope: Medicare calls, three call types
 
@@ -34,4 +34,4 @@ Why the filter: source zips are labelled by campaign, not content. `medicare_inb
 
 - `manifest.csv`: call_id, segment, source zip and member, file size, duration, word count, split (`golden` / `dev`).
 - `golden/golden_v2.jsonl`: hand labels for the 10 golden calls (schema v2); rules in `golden/LABELING.md`.
-- `raw/<segment>/<call_id>.json`: downloaded transcripts (gitignored).
+- `raw/<segment>/<call_id>.json`: the selected transcripts (AssemblyAI JSON as published).

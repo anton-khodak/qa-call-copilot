@@ -30,7 +30,7 @@ ollama pull qwen3:14b   # ~9 GB; same family, size comparison
 ## Run
 
 ```bash
-make run    # downloads the 36 transcripts if missing (~20 s), runs every model x prompt x sampling, then metrics
+make run    # runs every model x prompt x sampling on the 36 transcripts in data/raw/, then metrics
 make eval   # recompute metrics from results/runs/ without calling any model
 make test   # unit tests (no network)
 make label  # local UI for labelling / adjudicating the golden set
@@ -43,7 +43,7 @@ make run ARGS="--models gpt4o_mini qwen3_8b"         # ~20 min
 make run ARGS="--models gpt4o_mini --split golden"   # ~2 min, API only, no Ollama needed
 ```
 
-Transcripts are fetched from Hugging Face rather than committed, because the dataset card prohibits redistribution (see `data/README.md`); `make data` fetches them alone.
+The 36 transcripts are committed in `data/raw/` (licence and attribution in `data/README.md`); `make data` re-downloads any that are missing.
 
 `make run` is `python main.py matrix`: it checks the API key, Ollama and the data first, prints the total cost estimate and asks before spending (`ARGS=--yes` skips the question). Options: `--models`, `--prompts`, `--samplings`, `--golden-runs N`, `--split all|golden|dev`, `--yes`. `python main.py run` runs a single combination (`--model`, `--prompt`, `--sampling`).
 
@@ -62,4 +62,4 @@ Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with mod
 - `prompts/`: versioned prompts and `CHANGELOG.md`
 - `config/`: models (prices, timeouts, retries) and sampling configs
 
-Raw transcripts are CC BY-NC 4.0 and are not committed; `data/manifest.csv` records exactly which calls are used.
+Transcripts are CC BY-NC 4.0 (AIxBlock); `data/manifest.csv` records exactly which calls are used.
