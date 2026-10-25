@@ -2,7 +2,7 @@
 
 Source: [CallCenterEN (AIxBlock)](https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english), English call-centre transcripts in AssemblyAI JSON (`text`, `confidence`, `audio_duration`, `words` with timestamps, `redacted_pii_policies`). PII is already masked (`[PERSON_NAME]`, `[MONEY_AMOUNT]`, `[DATE]`, …). No speaker labels. The dataset is not gated.
 
-**Licence: CC BY-NC 4.0, no redistribution.** Raw transcripts are not committed; `make data` downloads exactly the calls in `manifest.csv` into `data/raw/` (gitignored).
+**Licence: CC BY-NC 4.0, and the dataset card adds "Commercial use, resale, or redistribution is prohibited."** Raw transcripts are therefore not committed; `make data` downloads exactly the calls in `manifest.csv` into `data/raw/` (gitignored).
 
 ## Scope: Medicare calls, three call types
 

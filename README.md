@@ -30,13 +30,22 @@ ollama pull qwen3:14b   # ~9 GB; same family, size comparison
 ## Run
 
 ```bash
-make data   # fetch the calls listed in data/manifest.csv into data/raw/ (gitignored)
-make run    # every model x prompt x sampling combination (golden calls 3 runs each), then metrics
-make eval   # recompute metrics from results/runs/ (e.g. after filling in golden labels)
+make run    # downloads the 36 transcripts if missing (~20 s), runs every model x prompt x sampling, then metrics
+make eval   # recompute metrics from results/runs/ without calling any model
 make test   # unit tests (no network)
+make label  # local UI for labelling / adjudicating the golden set
 ```
 
-`make run` is `python main.py matrix`: it checks the API key, Ollama and the data first, prints the total cost estimate and asks before spending. Options: `--models`, `--prompts`, `--samplings`, `--golden-runs N`, `--split all|golden|dev`, `--yes`. `python main.py run` runs a single combination (`--model`, `--prompt`, `--sampling`).
+A full `make run` costs about $0.06 on OpenRouter and takes about an hour on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
+
+```bash
+make run ARGS="--models gpt4o_mini qwen3_8b"         # ~20 min
+make run ARGS="--models gpt4o_mini --split golden"   # ~2 min, API only, no Ollama needed
+```
+
+Transcripts are fetched from Hugging Face rather than committed, because the dataset card prohibits redistribution (see `data/README.md`); `make data` fetches them alone.
+
+`make run` is `python main.py matrix`: it checks the API key, Ollama and the data first, prints the total cost estimate and asks before spending (`ARGS=--yes` skips the question). Options: `--models`, `--prompts`, `--samplings`, `--golden-runs N`, `--split all|golden|dev`, `--yes`. `python main.py run` runs a single combination (`--model`, `--prompt`, `--sampling`).
 
 Metrics (spec §11) go to `results/metrics.csv`, `results/per_class.csv` and `results/metrics.md`. Only the latest run of each combination is scored; golden accuracy is the median across runs, and a failed record counts as wrong.
 

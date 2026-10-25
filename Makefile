@@ -1,9 +1,9 @@
 data:
 	uv run python data/download.py
 
-# all models x prompts x samplings (config defaults), then metrics
-run:
-	uv run python main.py matrix
+# fetches the transcripts if missing, runs all models x prompts x samplings (config defaults), then metrics
+run: data
+	uv run python main.py matrix $(ARGS)
 
 eval:
 	uv run python main.py eval

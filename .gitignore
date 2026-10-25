@@ -9,3 +9,4 @@ CLAUDE.md
 *.tmp
 data/golden/*.bak.*
 results/aborted/
+course/
