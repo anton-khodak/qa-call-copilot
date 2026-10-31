@@ -21,3 +21,13 @@ def load_prompt(version: str, prompts_dir: Path = ROOT / "prompts") -> Prompt:
 
 def build_user_message(transcript: str) -> str:
     return f"<transcript>\n{transcript}\n</transcript>"
+
+
+def build_repair_message(transcript: str, previous_output: str | None, error: str) -> str:
+    return (
+        f"{build_user_message(transcript)}\n\n"
+        "Your previous output was not valid against the schema.\n"
+        f"<previous_output>\n{previous_output or ''}\n</previous_output>\n"
+        f"Error: {error}\n"
+        "Return the corrected JSON record only."
+    )

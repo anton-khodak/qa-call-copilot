@@ -34,21 +34,71 @@ def test_sends_prompt_and_wrapped_transcript():
     assert schema["title"] == "CallQARecord" and sampling == S
 
 
-def test_invalid_enum_failed():
-    raw = json.dumps({**VALID, "outcome": "maybe"})
-    r = _run(raw)
-    assert r.status == "failed" and r.parsed is None and r.raw_output == raw
-    assert r.warnings[0].startswith("validation_error")
+INVALID = json.dumps({**VALID, "outcome": "maybe"})
+
+
+def test_valid_first_try_makes_one_call():
+    client = FakeClient(VALID_JSON)
+    r = extract(client, transcript(), P, S)
+    assert r.status == "valid_first_try" and len(client.calls) == 1 and r.first_raw_output is None
+
+
+def test_invalid_then_valid_is_valid_after_repair():
+    client = FakeClient(INVALID, VALID_JSON)
+    r = extract(client, transcript(), P, S)
+    assert r.status == "valid_after_repair" and len(client.calls) == 2
+    assert r.parsed == CallQARecord.model_validate(VALID).model_dump(mode="json")
+    assert r.first_raw_output == INVALID and r.raw_output == VALID_JSON
+    assert any(w.startswith("validation_error:outcome") for w in r.warnings)
+
+
+def test_repair_message_contains_error_and_previous_output():
+    client = FakeClient(INVALID, VALID_JSON)
+    extract(client, transcript(text="raw text"), P, S)
+    system, user, schema, sampling = client.calls[1]
+    assert system == P.text and schema["title"] == "CallQARecord" and sampling == S
+    assert "<transcript>\nraw text\n</transcript>" in user
+    assert INVALID in user and "outcome" in user and "Input should be" in user
+
+
+def test_invalid_twice_is_failed():
+    second = json.dumps({**VALID, "direction": "sideways"})
+    r = _run(INVALID, second)
+    assert r.status == "failed" and r.parsed is None
+    assert r.first_raw_output == INVALID and r.raw_output == second
+    assert [w.split(":")[1] for w in r.warnings if w.startswith("validation_error")] == ["outcome", "direction"]
 
 
 def test_prose_output_failed():
-    r = _run("Sure! Here is the record you asked for.")
-    assert r.status == "failed" and r.raw_output == "Sure! Here is the record you asked for."
+    r = _run("Sure! Here is the record you asked for.", "Still prose.")
+    assert r.status == "failed" and r.raw_output == "Still prose."
 
 
-def test_none_content_failed():
-    r = _run(None)
-    assert r.status == "failed" and r.warnings == ["empty_output"]
+def test_empty_output_is_repaired():
+    r = _run(None, VALID_JSON)
+    assert r.status == "valid_after_repair" and r.warnings[0] == "empty_output"
+
+
+def test_repair_transport_error_is_failed():
+    r = _run(INVALID, TransportError(timeout_error(), 3))
+    assert r.status == "failed" and r.raw_output == INVALID
+    assert r.warnings[0].startswith("validation_error") and r.warnings[1] == "transport_error:APITimeoutError"
+
+
+def test_repair_tokens_are_summed():
+    r = _run(INVALID, VALID_JSON)
+    assert (r.input_tokens, r.output_tokens) == (2000, 400)
+
+
+def test_repair_keeps_backend_warnings_of_both_calls():
+    r = _run(Completion("{", 10, 5, ["output_truncated:1024"]), Completion(VALID_JSON, 10, 5, ["context_full:1"]))
+    assert r.status == "valid_after_repair"
+    assert "output_truncated:1024" in r.warnings and "context_full:1" in r.warnings
+
+
+def test_repair_fatal_error_propagates():
+    with pytest.raises(FatalClientError):
+        _run(INVALID, FatalClientError("no credits"))
 
 
 def test_transport_error_failed():

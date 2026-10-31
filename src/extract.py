@@ -1,4 +1,5 @@
-"""One extraction: call the model, validate against the schema, run code checks (spec §4, §8)."""
+"""One extraction: call the model, validate against the schema, repair once if invalid, run code checks
+(spec §4, §8)."""
 
 import time
 from dataclasses import dataclass, field
@@ -7,10 +8,10 @@ from typing import Literal
 import pydantic
 
 from src.checks import run_checks
-from src.clients.base import FatalClientError, ModelClient, RequestError, TransportError
+from src.clients.base import Completion, FatalClientError, ModelClient, RequestError, TransportError
 from src.config import SamplingConfig
 from src.dataset import Transcript
-from src.prompts import Prompt, build_user_message
+from src.prompts import Prompt, build_repair_message, build_user_message
 from src.schema import CallQARecord, strict_json_schema
 
 Status = Literal["valid_first_try", "valid_after_repair", "failed"]
@@ -25,6 +26,7 @@ class ExtractionResult:
     latency_ms: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    first_raw_output: str | None = None  # set only when a repair was attempted
 
 
 def validate_output(raw: str | None) -> tuple[CallQARecord | None, str | None]:
@@ -39,26 +41,48 @@ def validate_output(raw: str | None) -> tuple[CallQARecord | None, str | None]:
         return None, f"validation_error:{loc}: {err['msg']}"
 
 
-def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, sampling: SamplingConfig) -> ExtractionResult:
-    start = time.perf_counter()
+def _complete(client: ModelClient, system: str, user: str, sampling: SamplingConfig) -> tuple[Completion | None, str | None]:
+    """One model call; returns (completion, None) or (None, warning). FatalClientError propagates."""
     try:
-        completion = client.complete(prompt.text, build_user_message(transcript.text), strict_json_schema(), sampling)
+        return client.complete(system, user, strict_json_schema(), sampling), None
     except TransportError as e:
-        return ExtractionResult("failed", None, None, [f"transport_error:{type(e.last).__name__}"], _ms(start))
+        return None, f"transport_error:{type(e.last).__name__}"
     except RequestError as e:
-        return ExtractionResult("failed", None, None, [f"request_error:{e.kind}"], _ms(start))
+        return None, f"request_error:{e.kind}"
     except FatalClientError:
         raise
     except Exception as e:  # one bad response must not stop a paid multi-call run
-        return ExtractionResult("failed", None, None, [f"unexpected_error:{type(e).__name__}: {e}"], _ms(start))
-    latency = _ms(start)
-    tokens = dict(input_tokens=completion.input_tokens, output_tokens=completion.output_tokens)
+        return None, f"unexpected_error:{type(e).__name__}: {e}"
 
+
+def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, sampling: SamplingConfig) -> ExtractionResult:
+    start = time.perf_counter()
+    completion, error = _complete(client, prompt.text, build_user_message(transcript.text), sampling)
+    if completion is None:
+        return ExtractionResult("failed", None, None, [error], _ms(start))
+    warnings = list(completion.warnings)
+    tokens = [completion.input_tokens, completion.output_tokens]
     record, error = validate_output(completion.text)
+    if record is not None:
+        warnings += run_checks(record, transcript.text, transcript.source_call_type)
+        return ExtractionResult("valid_first_try", record.model_dump(mode="json"), completion.text, warnings,
+                                _ms(start), *tokens)
+
+    # Exactly one repair call with the validation error, then `failed` (spec §8).
+    first_raw = completion.text
+    warnings.append(error)
+    repair_msg = build_repair_message(transcript.text, first_raw, error)
+    repaired, call_error = _complete(client, prompt.text, repair_msg, sampling)
+    if repaired is None:
+        return ExtractionResult("failed", None, first_raw, warnings + [call_error], _ms(start), *tokens, first_raw)
+    warnings += repaired.warnings
+    tokens = [tokens[0] + repaired.input_tokens, tokens[1] + repaired.output_tokens]
+    record, error = validate_output(repaired.text)
     if record is None:
-        return ExtractionResult("failed", None, completion.text, completion.warnings + [error], latency, **tokens)
-    warnings = completion.warnings + run_checks(record, transcript.text, transcript.source_call_type)
-    return ExtractionResult("valid_first_try", record.model_dump(mode="json"), completion.text, warnings, latency, **tokens)
+        return ExtractionResult("failed", None, repaired.text, warnings + [error], _ms(start), *tokens, first_raw)
+    warnings += run_checks(record, transcript.text, transcript.source_call_type)
+    return ExtractionResult("valid_after_repair", record.model_dump(mode="json"), repaired.text, warnings,
+                            _ms(start), *tokens, first_raw)
 
 
 def _ms(start: float) -> int:

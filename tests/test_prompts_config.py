@@ -1,7 +1,7 @@
 import pytest
 
 from src.config import load_model, load_sampling
-from src.prompts import build_user_message, load_prompt
+from src.prompts import build_repair_message, build_user_message, load_prompt
 
 
 def test_prompt_hash_stable_and_short():
@@ -23,6 +23,12 @@ def test_prompt_v1_covers_required_topics():
 
 def test_user_message_wraps_raw():
     assert build_user_message(" a ") == "<transcript>\n a \n</transcript>"
+
+
+def test_repair_message_wraps_transcript_and_error():
+    m = build_repair_message(" a ", '{"x": 1}', "validation_error:outcome: bad")
+    assert m.startswith("<transcript>\n a \n</transcript>")
+    assert '<previous_output>\n{"x": 1}\n</previous_output>' in m and "validation_error:outcome: bad" in m
 
 
 def test_load_model():
