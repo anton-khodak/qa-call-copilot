@@ -39,7 +39,7 @@ make test   # unit tests (no network)
 make label  # local UI for labelling / adjudicating the golden set
 ```
 
-A full `make run` (both prompt versions) costs about $0.12 on OpenRouter and takes about two hours on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
+A full `make run` (both prompt versions) costs about $0.13 on OpenRouter and takes about two hours on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
 
 ```bash
 make run ARGS="--models gpt4o_mini qwen3_8b"                     # ~40 min
