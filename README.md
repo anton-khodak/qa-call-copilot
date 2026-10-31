@@ -6,10 +6,12 @@ Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://hu
 
 - **What and why:** `spec.md` (the assignment spec; the revision note at the top explains the Medicare-only scope).
 - **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
-- **Prompt:** `prompts/extract_v1.md`, history in `prompts/CHANGELOG.md`.
+- **Report:** `REPORT.md`: comparison table, error analysis, production choice.
+- **Prompts:** `prompts/extract_v1.md` (baseline) and `prompts/extract_v2.md` (fixes from dev-set errors); what changed and why in `prompts/CHANGELOG.md`.
 - **Golden set:** 10 calls in `data/golden/golden_v2.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus_v2.jsonl`, `astra_v2.jsonl`; every decision in `review_v2.json`).
-- **Results:** `results/metrics.md` (summary), `results/per_class.csv`, raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only) and qwen3 runs from before the Ollama client showed the schema to the model.
-- **Status:** steps 1-2 (baseline, local model, sampling configs, metrics) done; step 3 (prompt v2, repair) and step 4 (report) next.
+- **Results:** `results/metrics.md` (summary + per-field accuracy), `results/per_class.csv`, `results/golden_errors.csv` (every golden disagreement), raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only) and qwen3 runs from before the Ollama client showed the schema to the model.
+- **Validation and repair:** `src/extract.py`: schema validation, one repair call with the validation error, then `failed` (tests in `tests/test_extract.py`).
+- **Status:** steps 1-4 done.
 
 
 ## Install
@@ -30,17 +32,18 @@ ollama pull qwen3:14b   # ~9 GB; same family, size comparison
 ## Run
 
 ```bash
-make run    # runs every model x prompt x sampling on the 36 transcripts in data/raw/, then metrics
+make run    # runs every model x prompt (v1, v2) x sampling on the 36 transcripts in data/raw/, then metrics
 make eval   # recompute metrics from results/runs/ without calling any model
+make errors # export golden-set disagreements to results/golden_errors.csv
 make test   # unit tests (no network)
 make label  # local UI for labelling / adjudicating the golden set
 ```
 
-A full `make run` costs about $0.06 on OpenRouter and takes about an hour on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
+A full `make run` (both prompt versions) costs about $0.12 on OpenRouter and takes about two hours on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
 
 ```bash
-make run ARGS="--models gpt4o_mini qwen3_8b"         # ~20 min
-make run ARGS="--models gpt4o_mini --split golden"   # ~2 min, API only, no Ollama needed
+make run ARGS="--models gpt4o_mini qwen3_8b"                     # ~40 min
+make run ARGS="--models gpt4o_mini --split golden --prompts v2"  # ~2 min, API only, no Ollama needed
 ```
 
 The 36 transcripts are committed in `data/raw/` (licence and attribution in `data/README.md`); `make data` re-downloads any that are missing.
@@ -49,7 +52,7 @@ The 36 transcripts are committed in `data/raw/` (licence and attribution in `dat
 
 Metrics (spec §11) go to `results/metrics.csv`, `results/per_class.csv` and `results/metrics.md`. Only the latest run of each combination is scored; golden accuracy is the median across runs, and a failed record counts as wrong.
 
-Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with model, prompt version and hash, sampling, status, latency, tokens, cost, code-check warnings, raw output and the parsed record.
+Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with model, prompt version and hash, sampling (name, temperature, top_p, seed), status (`valid_first_try` / `valid_after_repair` / `failed`), latency, tokens and cost (both calls when repaired), code-check warnings, the raw output before repair (if any), the final raw output and the parsed record.
 
 ## Layout
 
@@ -58,7 +61,8 @@ Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with mod
 - `src/clients/`: model interface, OpenRouter backend, Ollama backend, retry/backoff
 - `src/eval.py`: metrics against the golden set and source call types
 - `src/label_app.py`: local labelling and adjudication UI for the golden set (`make label`)
-- `src/extract.py`: model call, schema validation, code checks (`src/checks.py`)
+- `src/extract.py`: model call, schema validation, one repair attempt, code checks (`src/checks.py`)
+- `src/errors.py`: golden-set disagreements for the error analysis (`make errors`)
 - `prompts/`: versioned prompts and `CHANGELOG.md`
 - `config/`: models (prices, timeouts, retries) and sampling configs
 
