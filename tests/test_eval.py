@@ -7,7 +7,9 @@ import pytest
 from src.eval import (
     combo_metrics,
     evaluate,
+    field_table,
     latest_per_combo,
+    markdown_table,
     objection_scores,
     percentile,
     score_golden,
@@ -124,3 +126,35 @@ def test_evaluate_skips_incomplete_golden_labels(tmp_path, capsys):
 
     assert rows[0]["golden_calls"] == 1 and rows[0]["acc_outcome"] == 1.0
     assert "1 of 2 golden labels incomplete" in capsys.readouterr().out
+
+
+def _row(**over):
+    m = combo_metrics([rec("a")], {"a": "plan_sales"}, {"a": gold()})
+    return {**m, **over}
+
+
+def test_markdown_table_has_repair_column():
+    t = markdown_table([_row(valid_after_repair_pct=5.0)])
+    assert "repaired %" in t.splitlines()[0] and "| 5 |" in t.splitlines()[2]
+
+
+def test_field_table_lists_every_field():
+    head = field_table([_row()]).splitlines()[0]
+    for col in ["call_type", "direction", "outcome", "agent_handoff", "recording_disclosed",
+                "disclaimer_before_benefits", "obj P", "obj R", "obj F1", "handled"]:
+        assert col in head, col
+    assert "| 1.00 |" in field_table([_row()]).splitlines()[2]
+
+
+def test_evaluate_writes_both_tables(tmp_path):
+    runs = tmp_path / "runs"
+    runs.mkdir()
+    (runs / "r1.jsonl").write_text(json.dumps(rec("a")) + "\n")
+    manifest = tmp_path / "manifest.csv"
+    manifest.write_text("call_id,segment,zip_name,member,file_size,audio_duration,word_count,split\n"
+                        "a,outbound_plan,z,m,1,,,golden\n")
+    golden = tmp_path / "golden.jsonl"
+    golden.write_text(json.dumps({"call_id": "a", "label": VALID}) + "\n")
+    evaluate(runs, tmp_path, golden_path=golden, manifest=manifest)
+    md = (tmp_path / "metrics.md").read_text()
+    assert "repaired %" in md and "disclaimer_before_benefits" in md

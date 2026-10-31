@@ -37,6 +37,7 @@ def build_record(
         "sampling_name": sampling.name,
         "temperature": sampling.temperature,
         "top_p": sampling.top_p,
+        "seed": sampling.seed,
         "run_idx": run_idx,
         "status": result.status,
         "latency_ms": result.latency_ms,
@@ -44,6 +45,7 @@ def build_record(
         "output_tokens": result.output_tokens,
         "cost_usd": cost_usd(result.input_tokens, result.output_tokens, model),
         "warnings": result.warnings,
+        "first_raw_output": result.first_raw_output,
         "raw_output": result.raw_output,
         "parsed": result.parsed,
     }

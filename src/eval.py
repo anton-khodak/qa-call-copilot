@@ -159,16 +159,31 @@ def _fmt(v, digits=2) -> str:
 
 
 def markdown_table(rows: list[dict]) -> str:
-    head = ("| model | prompt | sampling | valid 1st try % | failed % | p50 s | p95 s | $ / 1k calls | "
+    head = ("| model | prompt | sampling | valid 1st try % | repaired % | failed % | p50 s | p95 s | $ / 1k calls | "
             "call type acc (all) | extracted acc | inferred acc | objections F1 | golden runs |")
     lines = [head, "|" + "---|" * (head.count("|") - 1)]
     for r in rows:
         lines.append("| " + " | ".join([
             r["model"], r["prompt_version"], r["sampling_name"], _fmt(r["valid_first_try_pct"], 0),
-            _fmt(r["failed_pct"], 0), _fmt(r["latency_p50_ms"] / 1000, 1), _fmt(r["latency_p95_ms"] / 1000, 1),
+            _fmt(r["valid_after_repair_pct"], 0), _fmt(r["failed_pct"], 0), _fmt(r["latency_p50_ms"] / 1000, 1), _fmt(r["latency_p95_ms"] / 1000, 1),
             _fmt(r["cost_per_1k_usd"], 3), _fmt(r["call_type_acc_all"]), _fmt(r["acc_extracted"]),
             _fmt(r["acc_inferred"]), _fmt(r["obj_f1"]), _fmt(r["golden_runs"]),
         ]) + " |")
+    return "\n".join(lines) + "\n"
+
+
+FIELD_TABLE_COLUMNS = [(f"acc_{f}", f) for f in INFERRED + EXTRACTED] + [
+    ("obj_precision", "obj P"), ("obj_recall", "obj R"), ("obj_f1", "obj F1"), ("obj_handled_acc", "handled"),
+]
+
+
+def field_table(rows: list[dict]) -> str:
+    """Golden-set accuracy per field (median over runs) for each combination."""
+    head = "| model | prompt | sampling | " + " | ".join(label for _, label in FIELD_TABLE_COLUMNS) + " |"
+    lines = [head, "|" + "---|" * (head.count("|") - 1)]
+    for r in rows:
+        cells = [r["model"], r["prompt_version"], r["sampling_name"]] + [_fmt(r[k]) for k, _ in FIELD_TABLE_COLUMNS]
+        lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
 
 
@@ -199,7 +214,7 @@ def evaluate(
         w = csv.DictWriter(f, fieldnames=["model", "prompt_version", "sampling_name", "field", "class", "n", "accuracy"])
         w.writeheader()
         w.writerows(per_class_rows)
-    table = markdown_table(rows)
+    table = markdown_table(rows) + "\nGolden-set accuracy per field (median over runs):\n\n" + field_table(rows)
     note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v2.jsonl is filled.\n"
     (out_dir / "metrics.md").write_text(table + note)
     print(table + note)

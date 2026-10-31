@@ -134,12 +134,13 @@ def _record():
 
 def test_record_keys_match_spec():
     keys = ["run_id", "timestamp", "call_id", "split", "model", "provider", "prompt_version", "prompt_hash",
-            "schema_version", "sampling_name", "temperature", "top_p", "run_idx", "status", "latency_ms",
-            "input_tokens", "output_tokens", "cost_usd", "warnings", "raw_output", "parsed"]
+            "schema_version", "sampling_name", "temperature", "top_p", "seed", "run_idx", "status", "latency_ms",
+            "input_tokens", "output_tokens", "cost_usd", "warnings", "first_raw_output", "raw_output", "parsed"]
     rec = _record()
     assert list(rec.keys()) == keys
     assert (rec["model"], rec["provider"], rec["prompt_hash"], rec["schema_version"]) == (
         "openai/gpt-4o-mini", "openrouter", P.hash, "v2")
+    assert rec["seed"] == 42 and rec["first_raw_output"] is None
     assert rec["cost_usd"] == pytest.approx((1000 * 0.15 + 200 * 0.60) / 1e6)
 
 
