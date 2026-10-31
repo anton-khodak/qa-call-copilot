@@ -14,6 +14,7 @@ from src.clients.local import OllamaClient
 from src.clients.provider import ProviderClient
 from src.config import ModelConfig, SamplingConfig, load_model, load_sampling
 from src.dataset import Transcript, load_calls, raw_path, read_manifest
+from src.errors import write_errors
 from src.eval import evaluate
 from src.extract import extract
 from src.prompts import Prompt, load_prompt
@@ -147,11 +148,16 @@ def main(argv: list[str] | None = None) -> None:
     e = sub.add_parser("eval", help="compute metrics from results/runs into results/")
     e.add_argument("--runs-dir", default="results/runs")
     e.add_argument("--out-dir", default="results")
+    x = sub.add_parser("errors", help="export golden-set disagreements of the latest runs to a CSV")
+    x.add_argument("--runs-dir", default="results/runs")
+    x.add_argument("--out", default="results/golden_errors.csv")
     args = p.parse_args(argv)
     if args.command == "run":
         run(args)
     elif args.command == "matrix":
         matrix(args)
+    elif args.command == "errors":
+        write_errors(Path(args.runs_dir), Path(args.out))
     else:
         evaluate(Path(args.runs_dir), Path(args.out_dir))
 

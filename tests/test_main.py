@@ -99,3 +99,10 @@ def test_matrix_default_prompts_are_v1_v2(monkeypatch):
     monkeypatch.setattr(main, "matrix", lambda args: seen.update(prompts=args.prompts))
     main.main(["matrix"])
     assert seen["prompts"] == ["v1", "v2"]
+
+
+def test_errors_command_writes_golden_errors(monkeypatch):
+    seen = []
+    monkeypatch.setattr(main, "write_errors", lambda runs_dir, out: seen.append((str(runs_dir), str(out))))
+    main.main(["errors"])
+    assert seen == [("results/runs", "results/golden_errors.csv")]

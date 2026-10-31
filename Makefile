@@ -8,6 +8,10 @@ run: data
 eval:
 	uv run python main.py eval
 
+# golden-set disagreements of the latest runs, for the error analysis in REPORT.md
+errors:
+	uv run python main.py errors
+
 test:
 	uv run pytest
 
@@ -15,4 +19,4 @@ test:
 label:
 	uv run python -m src.label_app
 
-.PHONY: data run eval test label
+.PHONY: data run eval errors test label
