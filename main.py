@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> None:
     _add_run_options(r, golden_runs=1)
     m = sub.add_parser("matrix", help="run every model x prompt x sampling combination, then evaluate")
     m.add_argument("--models", nargs="+", default=["gpt4o_mini", "qwen3_8b", "qwen3_14b"])
-    m.add_argument("--prompts", nargs="+", default=["v1"])
+    m.add_argument("--prompts", nargs="+", default=["v1", "v2"])
     m.add_argument("--samplings", nargs="+", default=["deterministic", "low"])
     _add_run_options(m, golden_runs=3)
     e = sub.add_parser("eval", help="compute metrics from results/runs into results/")

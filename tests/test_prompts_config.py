@@ -46,3 +46,16 @@ def test_unknown_name_raises_keyerror_listing_options():
         load_model("nope")
     with pytest.raises(KeyError, match="deterministic"):
         load_sampling("nope")
+
+
+def test_prompt_v2_loads_and_differs_from_v1():
+    v2 = load_prompt("v2")
+    assert v2.version == "v2" and v2.hash != load_prompt("v1").hash
+
+
+def test_prompt_v2_covers_v1_topics_and_fixes():
+    t = load_prompt("v2").text
+    for kw in ["null", "unknown", "not_applicable", "speaker", "asr", "benefits", "verbatim"]:
+        assert kw in t.lower(), kw
+    for heading in ["## Who started the call", "## Call type", "## Deciding the disclaimer"]:
+        assert heading in t, heading

@@ -87,8 +87,15 @@ def test_matrix_runs_every_combination_then_evaluates(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "run_combo", lambda client, model, prompt, sampling, *a, **k: combos.append(
         (model.name, prompt.version, sampling.name)))
     monkeypatch.setattr(main, "evaluate", lambda runs_dir, out_dir: evaluated.append(runs_dir))
-    main.main(["matrix", "--yes", "--models", "gpt4o_mini", "qwen3_8b", "--samplings", "deterministic", "low",
+    main.main(["matrix", "--yes", "--models", "gpt4o_mini", "qwen3_8b", "--prompts", "v1", "--samplings", "deterministic", "low",
                "--out-dir", str(tmp_path)])
     assert combos == [("gpt4o_mini", "v1", "deterministic"), ("gpt4o_mini", "v1", "low"),
                       ("qwen3_8b", "v1", "deterministic"), ("qwen3_8b", "v1", "low")]
     assert evaluated == [tmp_path]
+
+
+def test_matrix_default_prompts_are_v1_v2(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(main, "matrix", lambda args: seen.update(prompts=args.prompts))
+    main.main(["matrix"])
+    assert seen["prompts"] == ["v1", "v2"]
