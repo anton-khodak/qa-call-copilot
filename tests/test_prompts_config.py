@@ -54,12 +54,12 @@ def test_prompt_v2_loads_and_differs_from_v1():
     assert v2.version == "v2" and v2.hash != load_prompt("v1").hash
 
 
-def test_prompt_v2_covers_v1_topics_and_fixes():
-    t = load_prompt("v2").text
-    for kw in ["null", "unknown", "speaker", "asr", "verbatim"]:
-        assert kw in t.lower(), kw
-    for heading in ["## Who started the call", "## Call type"]:
-        assert heading in t, heading
+def test_prompt_v2_is_v1_plus_one_section_per_dev_error():
+    v1, v2 = load_prompt("v1").text, load_prompt("v2").text
+    assert v2.startswith(v1.strip())
+    for heading in ["## Who started the call", "## Call type", "## Recording notice", "## Outcome"]:
+        assert heading in v2, heading
+    assert v2.count("## ") == 4
 
 
 @pytest.mark.parametrize("version", ["v1", "v2"])
