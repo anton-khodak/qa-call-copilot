@@ -28,3 +28,11 @@ models:
     max_attempts: 3
     context_tokens: 16384
     max_output_tokens: 1024
+  opus_5_5:  # frontier reference, run through the local Claude Code CLI (`claude -p`); sampling: cli_default only
+    provider: claude_code
+    model_id: claude-opus-5-5
+    base_url: ""  # not used: the CLI uses its own login
+    price_input_per_1m: 4.00  # derived from the CLI-reported cost; estimates only, records use that reported cost
+    price_output_per_1m: 20.00
+    timeout_s: 300
+    max_attempts: 3

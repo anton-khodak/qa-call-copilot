@@ -25,8 +25,8 @@ class ModelConfig:
 @dataclass(frozen=True)
 class SamplingConfig:
     name: str
-    temperature: float
-    top_p: float
+    temperature: float | None  # None: the backend's default (the claude CLI can't set it)
+    top_p: float | None
     seed: int | None
 
 

@@ -4,7 +4,7 @@ Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://hu
 
 ## For reviewers
 
-- **What and why:** `spec.md` (the assignment spec; the revision note at the top explains the Medicare-only scope).
+- **What and why:** `spec.md` (the assignment spec; the note at the top explains the Medicare-only scope).
 - **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
 - **Report:** `REPORT.md`: comparison table, error analysis, production choice.
 - **Prompts:** `prompts/extract_v1.md` (minimal baseline) and `prompts/extract_v2.md` (one rule per error class v1 made on the dev set); what changed and why in `prompts/CHANGELOG.md`.
@@ -33,6 +33,7 @@ ollama pull qwen3:14b   # ~9 GB; same family, size comparison
 
 ```bash
 make run    # runs every model x prompt (v1, v2) x sampling on the 36 transcripts in data/raw/, then metrics
+make frontier # Opus 5.5 reference through the local Claude Code CLI, both prompts, then metrics
 make eval   # recompute metrics from results/runs/ without calling any model
 make errors # export golden-set disagreements to results/golden_errors.csv
 make test   # unit tests (no network)
@@ -46,19 +47,21 @@ make run ARGS="--models gpt4o_mini qwen3_8b"                     # ~30 min
 make run ARGS="--models gpt4o_mini --split golden --prompts v2"  # ~2 min, API only, no Ollama needed
 ```
 
+`make frontier` needs [Claude Code](https://claude.com/claude-code) installed and logged in; it runs Opus 5.5 on both prompts in about 12 minutes (6 if the two prompts run in parallel with `python main.py run`) for about $2.70 at list price, billed to that login.
+
 The 36 transcripts are committed in `data/raw/` (licence and attribution in `data/README.md`); `make data` re-downloads any that are missing.
 
 `make run` is `python main.py matrix`: it checks the API key, Ollama and the data first, prints the total cost estimate and asks before spending (`ARGS=--yes` skips the question). Options: `--models`, `--prompts`, `--samplings`, `--golden-runs N`, `--split all|golden|dev`, `--yes`. `python main.py run` runs a single combination (`--model`, `--prompt`, `--sampling`).
 
 Metrics (spec §11) go to `results/metrics.csv`, `results/per_class.csv` and `results/metrics.md`. Only the latest run of each combination is scored; golden accuracy is the median across runs, and a failed record counts as wrong.
 
-Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with model, prompt version and hash, sampling (name, temperature, top_p, seed), status (`valid_first_try` / `valid_after_repair` / `failed`), latency, tokens and cost (both calls when repaired), code-check warnings, the raw output before repair (if any), the final raw output and the parsed record.
+Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with model, prompt version and hash, sampling (name, temperature, top_p, seed), status (`valid_first_try` / `valid_after_repair` / `failed`), latency, tokens and cost (both calls when repaired; for Opus the cost the CLI reports), code-check warnings, the raw output before repair (if any), the final raw output and the parsed record.
 
 ## Layout
 
 - `src/schema.py`: Pydantic QA record (`SCHEMA_VERSION = "v1"`)
 - `src/dataset.py`, `data/download.py`: call selection, manifest, transcript loading
-- `src/clients/`: model interface, OpenRouter backend, Ollama backend, retry/backoff
+- `src/clients/`: model interface, OpenRouter backend, Ollama backend, Claude Code CLI backend (frontier reference), retry/backoff
 - `src/eval.py`: metrics against the golden set and source call types
 - `src/label_app.py`: local labelling and adjudication UI for the golden set (`make label`)
 - `src/extract.py`: model call, schema validation, one repair attempt, code checks (`src/checks.py`)

@@ -5,6 +5,10 @@ data:
 run: data
 	uv run python main.py matrix $(ARGS)
 
+# frontier reference: Opus 5.5 through the local Claude Code CLI (its default sampling), both prompts, then metrics
+frontier: data
+	uv run python main.py matrix --models opus_5_5 --samplings cli_default $(ARGS)
+
 eval:
 	uv run python main.py eval
 
@@ -19,4 +23,4 @@ test:
 label:
 	uv run python -m src.label_app
 
-.PHONY: data run eval errors test label
+.PHONY: data run frontier eval errors test label

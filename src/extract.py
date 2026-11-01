@@ -27,6 +27,7 @@ class ExtractionResult:
     input_tokens: int = 0
     output_tokens: int = 0
     first_raw_output: str | None = None  # set only when a repair was attempted
+    cost_usd: float | None = None  # backend-reported cost; None means price it from tokens
 
 
 def validate_output(raw: str | None) -> tuple[CallQARecord | None, str | None]:
@@ -62,11 +63,12 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
         return ExtractionResult("failed", None, None, [error], _ms(start))
     warnings = list(completion.warnings)
     tokens = [completion.input_tokens, completion.output_tokens]
+    cost = completion.cost_usd
     record, error = validate_output(completion.text)
     if record is not None:
         warnings += run_checks(record, transcript.text, transcript.source_call_type)
         return ExtractionResult("valid_first_try", record.model_dump(mode="json"), completion.text, warnings,
-                                _ms(start), *tokens)
+                                _ms(start), *tokens, cost_usd=cost)
 
     # Exactly one repair call with the validation error, then `failed` (spec §8).
     first_raw = completion.text
@@ -74,15 +76,19 @@ def extract(client: ModelClient, transcript: Transcript, prompt: Prompt, samplin
     repair_msg = build_repair_message(transcript.text, first_raw, error)
     repaired, call_error = _complete(client, prompt.text, repair_msg, sampling)
     if repaired is None:
-        return ExtractionResult("failed", None, first_raw, warnings + [call_error], _ms(start), *tokens, first_raw)
+        return ExtractionResult("failed", None, first_raw, warnings + [call_error], _ms(start), *tokens, first_raw,
+                                cost)
     warnings += repaired.warnings
     tokens = [tokens[0] + repaired.input_tokens, tokens[1] + repaired.output_tokens]
+    if repaired.cost_usd is not None:
+        cost = (cost or 0.0) + repaired.cost_usd
     record, error = validate_output(repaired.text)
     if record is None:
-        return ExtractionResult("failed", None, repaired.text, warnings + [error], _ms(start), *tokens, first_raw)
+        return ExtractionResult("failed", None, repaired.text, warnings + [error], _ms(start), *tokens, first_raw,
+                                cost)
     warnings += run_checks(record, transcript.text, transcript.source_call_type)
     return ExtractionResult("valid_after_repair", record.model_dump(mode="json"), repaired.text, warnings,
-                            _ms(start), *tokens, first_raw)
+                            _ms(start), *tokens, first_raw, cost)
 
 
 def _ms(start: float) -> int:

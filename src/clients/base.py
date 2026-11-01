@@ -12,6 +12,7 @@ class Completion:
     input_tokens: int
     output_tokens: int
     warnings: list[str] = field(default_factory=list)
+    cost_usd: float | None = None  # set when the backend reports actual cost (caching, thinking)
 
 
 class TransportError(Exception):

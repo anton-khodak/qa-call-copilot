@@ -43,7 +43,7 @@ def build_record(
         "latency_ms": result.latency_ms,
         "input_tokens": result.input_tokens,
         "output_tokens": result.output_tokens,
-        "cost_usd": cost_usd(result.input_tokens, result.output_tokens, model),
+        "cost_usd": result.cost_usd if result.cost_usd is not None else cost_usd(result.input_tokens, result.output_tokens, model),
         "warnings": result.warnings,
         "first_raw_output": result.first_raw_output,
         "raw_output": result.raw_output,

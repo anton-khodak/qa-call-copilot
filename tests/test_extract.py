@@ -90,6 +90,17 @@ def test_repair_tokens_are_summed():
     assert (r.input_tokens, r.output_tokens) == (2000, 400)
 
 
+def test_reported_cost_is_summed_over_repair():
+    r = _run(Completion("{", 10, 5, cost_usd=0.01), Completion(VALID_JSON, 10, 5, cost_usd=0.02))
+    assert r.cost_usd == pytest.approx(0.03)
+    assert _run(VALID_JSON).cost_usd is None
+
+
+def test_record_uses_reported_cost_over_token_price():
+    res = ExtractionResult("valid_first_try", {"a": 1}, "{}", [], 5, 1000, 200, cost_usd=0.5)
+    assert build_record("run1", transcript(), load_model("gpt4o_mini"), P, S, 0, res)["cost_usd"] == 0.5
+
+
 def test_repair_keeps_backend_warnings_of_both_calls():
     r = _run(Completion("{", 10, 5, ["output_truncated:1024"]), Completion(VALID_JSON, 10, 5, ["context_full:1"]))
     assert r.status == "valid_after_repair"

@@ -15,6 +15,14 @@ def test_missing_key_exits_before_any_call(monkeypatch):
         main.make_client(load_model("gpt4o_mini"))
 
 
+def test_claude_code_client_needs_cli_on_path(monkeypatch):
+    monkeypatch.setattr(main.shutil, "which", lambda name: None)
+    with pytest.raises(SystemExit, match="claude"):
+        main.make_client(load_model("opus_5_5"))
+    monkeypatch.setattr(main.shutil, "which", lambda name: "/usr/local/bin/claude")
+    assert type(main.make_client(load_model("opus_5_5"))).__name__ == "ClaudeCodeClient"
+
+
 def test_estimate_cost():
     ts = [transcript(text="x" * 4000), transcript(text="y" * 4000)]
     est = main.estimate_cost(ts, load_model("gpt4o_mini"), 1, Prompt("v0", "", "h"))

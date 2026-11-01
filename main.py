@@ -3,6 +3,7 @@
 import argparse
 import collections
 import os
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.clients.base import FatalClientError, ModelClient
+from src.clients.claude_code import ClaudeCodeClient
 from src.clients.local import OllamaClient
 from src.clients.provider import ProviderClient
 from src.config import ModelConfig, SamplingConfig, load_model, load_sampling
@@ -33,6 +35,10 @@ def make_client(model: ModelConfig) -> ModelClient:
         except FatalClientError as e:
             raise SystemExit(str(e))
         return client
+    if model.provider == "claude_code":
+        if shutil.which("claude") is None:
+            raise SystemExit("claude CLI not found; install Claude Code and log in")
+        return ClaudeCodeClient(model)
     env = API_KEYS.get(model.provider)
     if env is None:
         raise SystemExit(f"unsupported provider {model.provider!r} for model {model.name!r}")

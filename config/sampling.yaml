@@ -8,3 +8,7 @@ sampling:
     temperature: 0.3
     top_p: 0.9
     seed: 42
+  cli_default:  # Claude Code CLI: no sampling flags, so the model's defaults (Opus 5.5 uses adaptive thinking)
+    temperature: null
+    top_p: null
+    seed: null

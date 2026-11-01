@@ -1,4 +1,6 @@
 model,provider,prompt_version,sampling_name,n_records,n_calls,valid_first_try_pct,valid_after_repair_pct,failed_pct,latency_p50_ms,latency_p95_ms,cost_per_1k_usd,call_type_acc_all,acc_call_type,acc_direction,acc_outcome,acc_agent_handoff,acc_recording_disclosed,obj_precision,obj_recall,obj_f1,obj_handled_acc,acc_extracted,acc_inferred,golden_calls,golden_runs
+claude-opus-5-5,claude_code,v1,cli_default,56,36,100.0,0.0,0.0,5556,10611,24.087914285714287,0.75,1.0,0.6,0.6,1.0,1.0,0.6666666666666666,0.8,0.7272727272727272,1.0,0.9090909090909091,0.7333333333333333,10,3
+claude-opus-5-5,claude_code,v2,cli_default,56,36,100.0,0.0,0.0,5806,9966,23.53483214285714,0.7777777777777778,1.0,0.8,0.7,1.0,1.0,0.6666666666666666,0.8,0.7272727272727272,1.0,0.9090909090909091,0.8333333333333334,10,3
 openai/gpt-4o-mini,openrouter,v1,deterministic,56,36,100.0,0.0,0.0,1344,1943,0.39286875,0.6388888888888888,0.7,0.3,0.6,1.0,0.6,0.6666666666666666,0.4,0.5,1.0,0.7,0.5333333333333333,10,3
 openai/gpt-4o-mini,openrouter,v1,low,56,36,100.0,0.0,0.0,1330,1843,0.39227946428571425,0.5833333333333334,0.7,0.3,0.6,1.0,0.6,0.6666666666666666,0.4,0.5,1.0,0.7,0.5333333333333333,10,3
 openai/gpt-4o-mini,openrouter,v2,deterministic,56,36,100.0,0.0,0.0,1333,2276,0.44566874999999995,0.6944444444444444,0.9,0.5,0.6,0.8,0.8,1.0,0.4,0.5714285714285715,0.0,0.7238095238095239,0.6666666666666666,10,3
