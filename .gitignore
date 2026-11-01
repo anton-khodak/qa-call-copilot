@@ -6,6 +6,4 @@ __pycache__/
 CLAUDE.md
 .pytest_cache/
 *.tmp
-data/golden/*.bak.*
-results/aborted/
 course/

@@ -2,6 +2,14 @@
 
 Which model, prompt and sampling setting should turn raw Medicare sales calls into the QA record in `src/schema.py`? This report gives the measured comparison, the typical errors, and the production choice.
 
+**Summary**
+- **Production choice: `qwen3:8b` + prompt v2 + `deterministic`.** Ties for the best golden average among the three candidates (0.72), the only candidate with `recording_disclosed` at 1.00, 6 s per call, $0, and no data leaves our machines.
+- **Prompt v1 → v2** (one section per dev-set error class) raises every model's six-field average: gpt-4o-mini 0.62 → 0.70, qwen3:14b 0.63 → 0.69, qwen3:8b 0.54 → 0.72.
+- **Sampling** barely matters for extraction: `low` (T 0.3) and `deterministic` (T 0) differ by at most one call per field, in both directions; `deterministic` wins on reproducibility.
+- **Validity:** 784 of 784 outputs were schema-valid on the first try; the repair path is covered by unit tests only.
+- **Frontier reference, Opus 5.5:** 0.82 (v1) and 0.87 (v2), 1.00 on `call_type`, `agent_handoff` and `recording_disclosed`. Part of that lead is circular (the golden labels were adjudicated against Opus's own blind labels); against the original hand labels it is 0.73 vs 0.67–0.68 for the best small setups. At $23.5 per 1,000 calls and with the least repeatable output, it is a reference and a reviewer's aid, not the production model.
+- With 10 golden calls, 0.10 is one call; differences under 0.10 are within noise.
+
 ## Setup
 
 - **Data:** 36 Medicare calls from CallCenterEN (AIxBlock), 12 per campaign (inbound plan sales, outbound plan sales, outbound medical equipment). The ASR text goes in raw, with no speaker labels and PII already masked. 10 calls are the **golden set**: hand-labelled per `data/golden/LABELING.md` and adjudicated against two blind model labellings. The other 26 are the **dev set**, used for prompt work. Details in `data/README.md`.
@@ -75,7 +83,7 @@ For scale, a constant answer would score: `call_type` = `plan_sales` 0.90 (9 of 
   - gpt-4o-mini's `direction` goes from 0.30 to 0.50.
   - The cost of the extra rules: gpt-4o-mini's input grows from $0.39 to $0.45 per 1,000 calls.
   - **One regression:** gpt-4o-mini's `agent_handoff` drops from 1.00 to 0.80 (error 5).
-- **Sampling.** `deterministic` and `low` give the same golden accuracy for gpt-4o-mini (apart from `handled` on the single objection call), and differ by at most one call per field for qwen3:14b. qwen3:8b with `low` loses the one objection call (F1 0.60 → 0.36). Temperature 0.3 buys nothing for extraction, so `deterministic` is the choice: reproducible, and it matches the course guidance (T≈0).
+- **Sampling.** `deterministic` and `low` give the same golden accuracy for gpt-4o-mini (apart from `handled` on the single objection call), and differ by at most one call per field for qwen3:14b. qwen3:8b with `low` loses the one objection call (F1 0.60 → 0.36). Temperature 0.3 buys nothing reliable for extraction (qwen3:14b v2 gains one call on two fields, qwen3:8b loses one), so `deterministic` is the choice: reproducible, and it matches the course guidance (T≈0).
 - **Model size.** qwen3:14b is the only small model with `call_type` = 1.00 and has the best `direction` (tied with qwen3:8b v2 at 0.60, which is only the constant-`outbound` level). It takes about 2× longer than qwen3:8b (p50 13 s vs 6 s). With v2, qwen3:8b catches up on the averages and beats it on `recording_disclosed` (1.00 vs 0.60–0.70).
 - **Latency and cost.** gpt-4o-mini answers in 1.3 s (p95 ≤ 2.3 s) for $0.45 per 1,000 calls with v2. The local models cost nothing per call but take 6–13 s (p95 up to 44 s) on the laptop.
 
@@ -113,6 +121,7 @@ Every disagreement with the golden set is in `results/golden_errors.csv` (`make 
 **1. `direction` without speaker labels: fixed for outbound calls, broken for inbound ones.**
 - **v1 error:** gpt-4o-mini answered `inbound` on outbound calls such as 4104666105 ("the reason I'm calling you today is because…") and 5169932905 ("the reason of my call is to let you know that your Medicare is getting upgraded"). With no speakers, the model seems to judge by who asks for what. v2's opening cues fixed both.
 - **New v2 error:** I wrote one cue too broadly, "the customer answering and the agent introducing themselves is outbound". All three models now call 2021-08-27-19-48-40 `outbound`, though it opens "This call may be recorded. Good afternoon, this is Ms. [PERSON_NAME] on a recorded line. How can I help you?", which is an inbound greeting. They do the same with the warm transfers 2021-08-18 and 2021-08-19 (golden `unknown`), where a licensed agent introduces themselves after "I have Ms. [PERSON_NAME] on the line".
+- **Opus 5.5 has the same trouble:** it calls the warm transfer 2021-08-19 `outbound` with both prompts (and 2021-08-18 with v1), so these calls are hard from the text alone, not only for small models.
 - **Fix for v3:** "How can I help you?" means inbound, and a screener's warm transfer alone is `unknown`.
 
 **2. `recording_disclosed`: `null` instead of `false`, partly fixed.**
@@ -120,6 +129,7 @@ Every disagreement with the golden set is in `results/golden_errors.csv` (`make 
 - **After v2:** the "Recording notice" section fixed DMEMED_rmbpo06 and DMEMED_rmbpo18 for gpt-4o-mini, and every call for qwen3:8b.
 - **Still wrong:** gpt-4o-mini keeps `null` on 9312963581 and 4104666105. qwen3:14b ignores the rule on all four calls (deterministic accuracy stays at 0.60).
 - **Likely cause:** the schema description that is passed with every call also says `null` "if the transcript … is too short or broken to tell". 9312963581 and 4104666105 are short (394 and 593 words) and broken, so the two instructions conflict, and the models follow the schema.
+- **Opus 5.5** answers `false` on all four calls with both prompts (1.00): it resolves the conflict the way the golden labels do.
 - **Fix:** change the field description, not the prompt.
 
 **3. A recording "notice" that isn't one (qwen3:8b, v1).**
@@ -132,13 +142,14 @@ Every disagreement with the golden set is in `results/golden_errors.csv` (`make 
 
 **4. `call_type`: a Medicare member asking about benefits labelled as member service (fixed); equipment vs plans (open).**
 - **The fixed case:** in 2021-08-18-14-54-00 the screener says the customer "is interested in learning more about Medicare Part 3 and additional benefits". With v1, every model answered `member_service`, since an existing Medicare member is asking about benefits. v2 limits `member_service` to an existing member's billing, claims or card questions, and `call_type` rises to 0.90–1.00.
-- **The open case:** DMEMED_rmbpo18_20211221 is an equipment offer pitched as "your benefits at no cost to you … some new benefits recently became available that you may qualify for". The product itself is masked (`[MEDICAL_PROCESS]`). gpt-4o-mini (v1 and v2) and qwen3:8b with v2 call it `plan_sales`, because equipment and plan campaigns share the same script.
+- **The open case:** DMEMED_rmbpo18_20211221 is an equipment offer pitched as "your benefits at no cost to you … some new benefits recently became available that you may qualify for". The product itself is masked (`[MEDICAL_PROCESS]`). gpt-4o-mini (v1 and v2) and qwen3:8b with v2 call it `plan_sales`, because equipment and plan campaigns share the same script. Opus 5.5 gets it right (`call_type` 1.00 with both prompts), so the text does carry the signal.
 - **A caveat on `call type acc (all)`:** two of the three golden calls from the equipment campaign are labelled `plan_sales`, so this metric, which scores against the campaign, is only a rough proxy.
 
 **5. One outcome error spreads to `agent_handoff` (gpt-4o-mini's v2 regression).**
 - **The call:** DMEMED_rmbpo18_20211221 ends with the agent putting in the order herself: "do you have any questions for me before I put in a request for you? … don't forget to pick up the next phone call". The golden label is `outcome = sale`, `agent_handoff = false`.
 - **v1:** gpt-4o-mini said `callback`, with `agent_handoff = false`.
 - **v2:** it says `transfer`, and v2's rule "`transfer` always comes with `agent_handoff = true`" turns the wrong outcome into a second wrong field. Together with 2021-08-19, where the handoff happens in the first seconds ("I'm connecting you call") and is missed, this is gpt-4o-mini's `agent_handoff` drop from 1.00 to 0.80.
+- **Opus 5.5** also answers `callback` on this call, with both prompts, but keeps `agent_handoff = false` (1.00): the outcome is genuinely ambiguous from the text; the handoff is not.
 - **The broader point:** coupling rules between fields make the output consistent, but an error in one field now carries over to the other. A code check that reports the inconsistency (instead of the prompt forcing it) would keep the two fields independent.
 
 ## Production choice

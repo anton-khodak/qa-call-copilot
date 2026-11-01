@@ -1,7 +1,7 @@
 
 # HW1 spec — Structured Extraction Service (Call QA & Compliance Copilot, stage 1)
 
-Input spec for implementation. Source of truth: `Project spec.md` (the project being built) + the HW1 brief (`Домашні завдання _ 2 потік _ AI Engineering.pdf`) + lecturer guidance (`Overview.md`). Where this file proposes a default, it is marked **Default** and can be changed during brainstorming.
+Design spec written before implementation, from the HW1 brief and the course project spec, and kept in sync with the code. Code docstrings cite its sections (`spec §N`). Choices the brief left open are marked **Default**. Results and the final choice are in `REPORT.md`.
 
 > **Scope: Medicare-only.** The business outcome is compliance QA on every call, so the data is Medicare-only, split into three call types. Why: `medicare_inbound.zip` turned out to be ~95% non-Medicare (vet clinics etc.), only Medicare calls exercise the compliance rules, and the stage-2 RAG source is the CMS Medicare guidelines.
 
@@ -30,12 +30,12 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 ## 3. Data
 **Source:** CallCenterEN (AIxBlock) — https://huggingface.co/datasets/AIxBlock/92k-real-world-call-center-scripts-english. One zip per campaign (labelled by campaign, not content); each call is AssemblyAI JSON with `text`, `confidence`, `audio_duration`, `words` (timestamps + confidence), `redacted_pii_policies`. PII already masked (`[PERSON_NAME]`, `[MONEY_AMOUNT]`, `[DATE]`, …). No speaker labels.
 
-**Licence constraint (CC BY-NC 4.0, no redistribution):** raw transcripts are NOT committed. The brief requires `data/` with texts and golden set, so `data/` contains:
-- `data/download.py` (or `make data`) — fetches the chosen zips (HTTP range reads) and extracts only the selected calls. The dataset is not gated; `HF_TOKEN` is optional.
-- `data/manifest.csv` — selected call IDs, segment, duration, word count, split (golden / dev). Committed.
-- `data/golden/golden.jsonl` — hand labels (own work), keyed by call ID. Committed.
-- `data/raw/` — downloaded transcripts, gitignored.
-- `data/README.md` — dataset described by category (segments, counts, length distribution, source caveats); lecturer accepts this.
+**Licence (CC BY-NC 4.0):** the brief requires `data/` with the texts and the golden set, so the 36 selected transcripts are committed unmodified for non-commercial coursework, with attribution and the dataset card's redistribution caveat in `data/README.md`. `data/` contains:
+- `data/download.py` (or `make data`) — fetches the chosen zips (HTTP range reads) and extracts only the selected calls, if any are missing. The dataset is not gated; `HF_TOKEN` is optional.
+- `data/manifest.csv` — selected call IDs, segment, duration, word count, split (golden / dev).
+- `data/golden/golden.jsonl` — hand labels (own work), keyed by call ID.
+- `data/raw/` — the 36 transcripts (AssemblyAI JSON as published).
+- `data/README.md` — dataset described by category (segments, counts, length distribution, source caveats).
 
 **Selection.** Medicare only, three call types ("document types" in the lecturer's sense), 12 calls each, seed 42, mixed lengths via file-size bands:
 
@@ -73,10 +73,11 @@ Each field is described once with `Field(description=...)` and passed via struct
 - predicted `call_type` vs the source segment's expected `call_type` → flag.
 
 ## 5. Model interface
-- One interface, e.g. `extract(transcript, prompt, sampling) -> ExtractionResult`, with two backends:
+- One interface, `extract(client, transcript, prompt, sampling) -> ExtractionResult`, with two backends:
   - **Provider:** **Default:** OpenRouter via the OpenAI SDK (`OPENROUTER_API_KEY`), a cheap model with JSON-schema structured output. Exact model chosen in config.
   - **Local:** Ollama on the laptop. **Default:** a qwen3 model with thinking mode **off** (otherwise latency, tokens and JSON break). Structured output via Ollama's JSON-schema `format`.
 - Same prompt and same schema-passing method for both models (fair comparison).
+- Frontier reference (added after the main comparison): Claude Opus 5.5 through the local Claude Code CLI (`claude -p --json-schema`), behind the same interface. The CLI has no sampling flags, so it runs with its defaults (`cli_default`).
 - Transport errors and timeouts: retry with exponential backoff (**Default:** 3 attempts, 60 s timeout provider / longer for local, configurable).
 - Model list, prices per 1M tokens and timeouts in `config/models.yaml`.
 
@@ -101,7 +102,7 @@ One JSONL line per (call × model × prompt version × sampling × run):
 Results are committed (outputs contain only already-masked derived data — re-check before committing).
 
 ## 10. Experiment matrix
-2 models × 2 prompt versions × 2 sampling configs.
+3 models (`gpt-4o-mini`, `qwen3:8b`, `qwen3:14b`) × 2 prompt versions × 2 sampling configs, plus Opus 5.5 × 2 prompt versions as a frontier reference.
 - All 30+ calls: 1 run per combination (validity, latency, cost).
 - Golden 10: 3–5 runs per combination; report medians (accuracy, latency).
 - Budget: ≤ $5 API total; estimate cost before a full run and print it. Local model must run on an ordinary laptop — **Default:** if local runs are too slow, cut repeated runs to the golden set only and note it in REPORT.md.
@@ -126,46 +127,42 @@ Computed against `data/golden/golden.jsonl`, per combination:
 .
 ├── main.py                # one-command entry: data check → runs → eval → metrics
 ├── Makefile               # make data / make run / make eval / make test
-├── src/                   # schema.py, clients/ (provider, local), extract.py, validate.py, checks.py, eval.py
+├── src/                   # schema.py, clients/ (provider, local, claude_code), extract.py, checks.py, eval.py, errors.py
 ├── config/                # models.yaml, sampling.yaml
 ├── prompts/               # extract_v1.md, extract_v2.md, CHANGELOG.md
-├── data/                  # download.py, manifest.csv, golden/, README.md (raw/ gitignored)
-├── results/               # runs/*.jsonl, metrics.csv
+├── data/                  # download.py, manifest.csv, golden/, raw/, README.md
+├── results/               # runs/*.jsonl, metrics.csv/md, per_class.csv, golden_errors.csv
 ├── tests/                 # schema, repair path, scoring, code checks
 ├── REPORT.md
 ├── README.md              # install (Python 3.11+, Ollama + model pull), .env setup, run
 ├── .env.example           # OPENROUTER_API_KEY, HF_TOKEN (if needed), OLLAMA_HOST
-└── .gitignore             # .env, data/raw/
+└── .gitignore             # .env
 ```
 `make run` (or `python main.py`) runs end to end on a fresh clone after `.env` is filled and Ollama is running.
 
 ## 14. Acceptance criteria (rubric, grouped by step)
 **Step 1**
-- [ ] Schema: ≥ 6 fields, enum, nested structure, `Field(description=...)`
-- [ ] Provider model via structured output, with retry and timeout
-- [ ] All ≥ 30 calls run, results saved
+- [x] Schema: ≥ 6 fields, enum, nested structure, `Field(description=...)`
+- [x] Provider model via structured output, with retry and timeout
+- [x] All ≥ 30 calls run, results saved
 
 **Step 2**
-- [ ] Local model behind the same interface
-- [ ] Sampling in config, ≥ 2 configs compared
-- [ ] Accuracy, validity, latency p50/p95, cost per 1,000 correctly measured
+- [x] Local model behind the same interface
+- [x] Sampling in config, ≥ 2 configs compared
+- [x] Accuracy, validity, latency p50/p95, cost per 1,000 correctly measured
 
 **Step 3**
-- [ ] ≥ 2 prompt versions with changelog explaining changes
-- [ ] Schema validation + one repair attempt + `failed`
-- [ ] Model, prompt version and sampling logged per result
+- [x] ≥ 2 prompt versions with changelog explaining changes
+- [x] Schema validation + one repair attempt + `failed`
+- [x] Model, prompt version and sampling logged per result
 
 **Step 4**
-- [ ] REPORT.md: full comparison table, 3–5 error analyses, justified choice
+- [x] REPORT.md: full comparison table, 3–5 error analyses, justified choice
 
 **Repo quality (all steps)**
-- [ ] README, one-command run, keys only in `.env`, raw data not committed
+- [x] README, one-command run, keys only in `.env`, data licence documented
 
 ## 15. Stretch (no extra points, only if time)
 Third cheap provider model · automated regression run of prompts on the golden set · response cache keyed by (call, model, prompt hash, sampling).
 
-## 16. Open questions for brainstorming
-1. ~~Final `customer_intent` enum~~ — resolved: field dropped.
-2. ~~Keep `issue_resolved`?~~ — resolved: kept, for member service calls.
-3. ~~Provider and local model~~ — resolved: `openai/gpt-4o-mini` via OpenRouter ($0.15 / $0.60 per 1M tokens) and `qwen3:8b` on Ollama (thinking off, 16k context), on a 24 GB M5 laptop.
-4. Repo visibility: public repo with labels + call IDs only, or private repo shared with the lecturer/mentor?
+Done: a third model (`qwen3:14b`, same family as `qwen3:8b`, to isolate model size) and a frontier reference (Opus 5.5); `make run` re-scores every prompt version on the golden set, which serves as the regression run. Not done: response cache.

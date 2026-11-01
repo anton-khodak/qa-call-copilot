@@ -4,15 +4,26 @@ Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://hu
 
 ## For reviewers
 
-- **What and why:** `spec.md` (the assignment spec; the note at the top explains the Medicare-only scope).
-- **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
-- **Report:** `REPORT.md`: comparison table, error analysis, production choice.
-- **Prompts:** `prompts/extract_v1.md` (minimal baseline) and `prompts/extract_v2.md` (one rule per error class v1 made on the dev set); what changed and why in `prompts/CHANGELOG.md`.
-- **Golden set:** 10 calls in `data/golden/golden.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus.jsonl`, `astra.jsonl`; every decision in `review.json`).
-- **Results:** `results/metrics.md` (summary + per-field accuracy), `results/per_class.csv`, `results/golden_errors.csv` (every golden disagreement), raw runs in `results/runs/`.
-- **Validation and repair:** `src/extract.py`: schema validation, one repair call with the validation error, then `failed` (tests in `tests/test_extract.py`).
-- **Status:** steps 1-4 done.
+Start with **`REPORT.md`** (summary, comparison tables, error analysis, production choice). `make eval` recomputes every number in it from the committed runs in seconds, with no API key or Ollama.
 
+| Grading criterion | Where |
+|---|---|
+| Schema: ≥ 6 fields, enum, nested structure | `src/schema.py`: 6 fields, 4 enums, nested `objections` list and `compliance` object; field descriptions are the definitions sent to the model |
+| Structured output + retry and timeout | `src/clients/provider.py` (OpenAI strict JSON schema via OpenRouter), `src/clients/local.py` (Ollama `format`), `src/clients/retry.py` (exponential backoff); timeouts and attempts in `config/models.yaml` |
+| All texts run, results saved | `results/runs/*.jsonl`: 36 calls per combination, golden calls ×3 |
+| Local model behind the same interface | `src/clients/base.py` (`ModelClient`), implemented by the OpenRouter, Ollama and Claude Code backends |
+| Sampling in config, ≥ 2 configs compared | `config/sampling.yaml`: `deterministic`, `low` (and `cli_default` for Opus) |
+| Accuracy, validity, latency, cost | `src/eval.py` → `results/metrics.md`, `metrics.csv`, `per_class.csv` |
+| ≥ 2 prompt versions with changelog | `prompts/extract_v1.md` (minimal baseline), `prompts/extract_v2.md` (one section per dev-set error class), `prompts/CHANGELOG.md` (what changed, why, with dev-set counts) |
+| Validation + handling invalid output | `src/extract.py`: Pydantic validation, one repair call with the validation error, then `failed`; tests in `tests/test_extract.py` |
+| Logging model, prompt version, sampling | `src/results.py`: every record carries model, provider, prompt version and hash, schema version, sampling name, temperature, top_p, seed, status, latency, tokens, cost |
+| Comparison table, 3–5 errors, final choice | `REPORT.md`; every golden disagreement in `results/golden_errors.csv` (`make errors`) |
+| README, one command, keys not in code | this file; `make run`; keys only in `.env` (template `.env.example`) |
+
+- **Data:** 36 Medicare calls, 10 of them the golden set (`data/README.md`). Golden labels in `data/golden/golden.jsonl`, made by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus.jsonl`, `astra.jsonl`; every decision in `review.json`).
+- **Design spec:** `spec.md` (written before implementation; code docstrings cite its sections).
+- **Stretch:** a third model (`qwen3:14b`, to isolate model size) and a frontier reference (Claude Opus 5.5 through the local Claude Code CLI, `make frontier`).
+- **Tests:** `make test`, 137 unit tests, no network.
 
 ## Install
 
