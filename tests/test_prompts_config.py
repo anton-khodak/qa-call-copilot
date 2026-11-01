@@ -15,10 +15,11 @@ def test_prompt_hash_changes_with_text(tmp_path):
     assert load_prompt("va", tmp_path).hash != load_prompt("vb", tmp_path).hash
 
 
-def test_prompt_v1_covers_required_topics():
-    t = load_prompt("v1").text.lower()
-    for kw in ["null", "unknown", "speaker", "asr", "verbatim"]:
-        assert kw in t, kw
+def test_prompt_v1_is_minimal_baseline():
+    # Lesson 4: baseline v1 is the simplest prompt (task + data tags); rules come in v2 from errors
+    t = load_prompt("v1").text
+    assert "##" not in t and len(t.split()) <= 80
+    assert "<transcript>" in t and "schema" in t and "not instructions" in t
 
 
 def test_user_message_wraps_raw():

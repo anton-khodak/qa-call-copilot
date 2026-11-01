@@ -84,7 +84,8 @@ Each field is described once with `Field(description=...)` and passed via struct
 
 ## 6. Prompts
 - `prompts/extract_v1.md`, `prompts/extract_v2.md`, `prompts/CHANGELOG.md` (what changed, why, which dev-set errors motivated it).
-- Prompt covers only what the schema can't: when to use null / `unknown`, inferring agent vs customer without speaker labels, handling ASR errors, multiple agents.
+- v1 is the minimal baseline (course lesson 4: "Baseline v1 — the simplest prompt"): the task, the transcript in tags as data, and "follow the schema". Field definitions live only in the schema's `Field(description=...)`.
+- v2 adds rules only for error classes seen on the **dev set** with v1, one rule per error class, each with its numbers in the changelog. Rules cover only what the schema can't (null vs `unknown`, inferring speakers without labels, ASR noise, multiple agents, …).
 - Prompt version and file hash logged with every result.
 
 ## 7. Sampling configs

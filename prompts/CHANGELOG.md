@@ -1,5 +1,8 @@
 # Prompt changelog
 
+## v1 rewritten as a minimal baseline — 2026-11-01
+Course lesson 4 defines the cycle as baseline v1 (the simplest prompt) → per-field error analysis → v2 with one change per error. The previous v1 already carried hand-written rules (null handling, speakers, ASR, handoffs, evidence quotes) that no measured error had motivated, so v1 is now only the task, the transcript in `<transcript>` tags as data (not instructions), and "follow the schema". The field definitions reach the model through the schema (OpenAI structured output; Ollama gets it appended to the system prompt). v2 is rebuilt from v1's dev-set errors (entry above this one once written). The old rule-based v1 and v2 texts are in git history; their results are in `results/archive/schema_v2_with_disclaimer/`.
+
 ## v1 and v2 (revised for schema v3) — 2026-11-01
 Schema v3 drops `compliance.disclaimer_before_benefits`, so the prompt text about it is removed from both versions. These are scope edits, not fixes, so the version numbers stay; the file hashes changed and every result records them. All combinations were re-run.
 - v1 and v2: removed the `not_applicable` rule for the disclaimer and the "Benefits discussed" section (it existed only to time the disclaimer); the "Unknown, null and not_applicable" heading is now "Unknown and null".
