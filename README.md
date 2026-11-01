@@ -7,7 +7,7 @@ Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://hu
 - **What and why:** `spec.md` (the assignment spec; the revision note at the top explains the Medicare-only scope).
 - **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
 - **Report:** `REPORT.md`: comparison table, error analysis, production choice.
-- **Prompts:** `prompts/extract_v1.md` (baseline) and `prompts/extract_v2.md` (fixes from dev-set errors); what changed and why in `prompts/CHANGELOG.md`.
+- **Prompts:** `prompts/extract_v1.md` (minimal baseline) and `prompts/extract_v2.md` (one rule per error class v1 made on the dev set); what changed and why in `prompts/CHANGELOG.md`.
 - **Golden set:** 10 calls in `data/golden/golden_v3.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus_v3.jsonl`, `astra_v3.jsonl`; every decision in `review_v3.json`).
 - **Results:** `results/metrics.md` (summary + per-field accuracy), `results/per_class.csv`, `results/golden_errors.csv` (every golden disagreement), raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only), qwen3 runs from before the Ollama client showed the schema to the model, and all schema-v2 runs, which still had the disclaimer field (`schema_v2_with_disclaimer/`).
 - **Validation and repair:** `src/extract.py`: schema validation, one repair call with the validation error, then `failed` (tests in `tests/test_extract.py`).
@@ -39,10 +39,10 @@ make test   # unit tests (no network)
 make label  # local UI for labelling / adjudicating the golden set
 ```
 
-A full `make run` (both prompt versions) costs about $0.13 on OpenRouter and takes about two hours on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~16 s per call, qwen3:8b ~8 s, gpt-4o-mini ~2 s). For a quicker check, skip the 14B model:
+A full `make run` (both prompt versions) costs about $0.10 on OpenRouter and takes about an hour and a half on an Apple M-series laptop, almost all of it the local models (qwen3:14b ~13 s per call, qwen3:8b ~6 s, gpt-4o-mini ~1.3 s). For a quicker check, skip the 14B model:
 
 ```bash
-make run ARGS="--models gpt4o_mini qwen3_8b"                     # ~40 min
+make run ARGS="--models gpt4o_mini qwen3_8b"                     # ~30 min
 make run ARGS="--models gpt4o_mini --split golden --prompts v2"  # ~2 min, API only, no Ollama needed
 ```
 
