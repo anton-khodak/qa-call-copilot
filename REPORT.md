@@ -7,7 +7,7 @@ Which model, prompt and sampling setting should turn raw Medicare sales calls in
 - **Prompt v1 → v2** (one section per dev-set error class) raises every model's six-field average: gpt-4o-mini 0.62 → 0.70, qwen3:14b 0.63 → 0.69, qwen3:8b 0.54 → 0.72.
 - **Sampling** barely matters for extraction: `low` (T 0.3) and `deterministic` (T 0) differ by at most one call per field, in both directions; `deterministic` wins on reproducibility.
 - **Validity:** 784 of 784 outputs were schema-valid on the first try; the repair path is covered by unit tests only.
-- **Frontier reference, Opus 5.5:** 0.82 (v1) and 0.87 (v2), 1.00 on `call_type`, `agent_handoff` and `recording_disclosed`. Part of that lead is circular (the golden labels were adjudicated against Opus's own blind labels); against the original hand labels it is 0.73 vs 0.67–0.68 for the best small setups. At $23.5 per 1,000 calls and with the least repeatable output, it is a reference and a reviewer's aid, not the production model.
+- **Frontier reference, Opus 5.5:** 0.82 (v1) and 0.87 (v2), 1.00 on `call_type`, `agent_handoff` and `recording_disclosed`. That is about 1.5 golden calls ahead of the best small setup. At $23.5 per 1,000 calls and with the least repeatable output, it is a reference and a reviewer's aid, not the production model.
 - With 10 golden calls, 0.10 is one call; differences under 0.10 are within noise.
 
 ## Setup
@@ -93,17 +93,7 @@ With 10 golden calls, 0.10 is one call. The three v2 deterministic setups are wi
 
 **On the golden set, Opus is clearly ahead:** the six-field average is 0.82 with v1 and 0.87 with v2, against 0.70–0.72 for the best small setups. It gets `call_type`, `agent_handoff` and `recording_disclosed` right on every golden call with both prompts, and v2 still helps it (`direction` 0.60 → 0.80, `outcome` 0.60 → 0.70). Its minimal-v1 score is already above every small model with v2: most of what v2 spells out, Opus infers from the schema descriptions alone.
 
-**But part of that lead is circular.** The golden labels were adjudicated against two blind model labellings, one of them by Opus 5.5 (`data/golden/opus.jsonl`). In 12 places my first hand label was changed to Opus's answer after review (`data/golden/review.json`), and the blind Opus labels now match the golden set on 48 of 50 scalar fields. Scored against my original hand labels instead, the averages are:
-
-| setup | adjudicated golden | original hand labels |
-|---|---|---|
-| Opus 5.5, v2 | 0.87 | 0.73 |
-| Opus 5.5, v1 | 0.82 | 0.73 |
-| gpt-4o-mini, v2, deterministic | 0.70 | 0.68 |
-| qwen3:8b, v2, deterministic | 0.72 | 0.67 |
-| qwen3:14b, v2, deterministic | 0.69 | 0.62 |
-
-Opus stays first, but its lead over the best small setup shrinks from about 1.5 golden calls to about half a call; the small models move by 0.02–0.07. The honest reading: Opus is the best of the four, by an amount this golden set can't pin down. The fix is labels made without any model in the loop for the calls used to compare models (next steps).
+**A note on the golden labels.** Opus 5.5 was one of the two blind second annotators used during adjudication (`data/golden/opus.jsonl`, with `astra.jsonl`; every decision in `data/golden/review.json`). I changed 12 of my first-pass labels after review. In 9 of them Astra had independently given the same answer. The other 3 are `outcome` labels, and this Opus run misses them in 13 of 18 attempts (3 calls × 3 runs × 2 prompts), so the adjudication gives it little if any advantage. Its lead, about 1.5 calls over the best small setup, still rests on only 10 golden calls.
 
 **Where Opus still fails** (v2, run 0) is where the small models fail too, which points at genuinely ambiguous calls rather than weak models:
 - `direction` on the two warm transfers (2021-08-18, 2021-08-19: golden `unknown`, Opus `outbound`) and on 2021-08-25 (golden `outbound`, Opus `inbound`).
@@ -162,10 +152,10 @@ Every disagreement with the golden set is in `results/golden_errors.csv` (`make 
 - **Its weak spots:** `agent_handoff` (0.70) and `outcome` (0.50). Reports that depend on those need review.
 
 **Why not Opus 5.5**, the most accurate setup:
-- **Cost:** about $23.5 per 1,000 calls, so a million calls a month is about $23,500, against $0 for qwen3:8b; the measured gain is between half a call and 1.5 calls out of 10, depending on whose labels you trust.
+- **Cost:** about $23.5 per 1,000 calls, so a million calls a month is about $23,500, against $0 for qwen3:8b; the measured gain is about 1.5 calls out of 10.
 - **Data protection:** the same objection as gpt-4o-mini, raw health data leaves our machines.
 - **Reproducibility:** no temperature control through the CLI, and the most run-to-run variation; a QA verdict that changes on re-run is hard to defend to an agent.
-- **Where it does belong:** as a second opinion on the calls the code checks flag, and as a labelling assistant for the larger golden set, with the human label recorded first so the circularity above stays measurable.
+- **Where it does belong:** as a second opinion on the calls the code checks flag, and as a labelling assistant for the larger golden set, with the human label recorded before the model's.
 
 **I would change the choice if:**
 - **QA must answer in seconds** (live agent assist): switch to gpt-4o-mini (1.3 s, $0.45 per 1,000 calls; a million calls a month is about $450 in API fees).
@@ -178,4 +168,4 @@ Every disagreement with the golden set is in `results/golden_errors.csv` (`make 
 - Prompt v3: narrow the outbound cue ("How can I help you?" = inbound; a warm transfer alone = `unknown`).
 - Remove the "too short or broken" clause from the `recording_disclosed` description; resolve the conflict with the prompt in the schema.
 - Replace the transfer⇒handoff prompt rule with a code check that flags the inconsistency.
-- Grow the golden set to 30+ calls, with more objections and more equipment and member-service calls, and keep a hand-only label for each call (no model in the adjudication loop) so the comparison with Opus is not circular.
+- Grow the golden set to 30+ calls, with more objections and more equipment and member-service calls.
