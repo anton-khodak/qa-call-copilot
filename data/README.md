@@ -6,7 +6,7 @@ Source: [CallCenterEN (AIxBlock)](https://huggingface.co/datasets/AIxBlock/92k-r
 
 ## Scope: Medicare calls, three call types
 
-The product is compliance QA for Medicare sales calls (CMS requires a third-party marketing disclaimer before plan benefits are discussed), so every call is a Medicare call. The three "document types" are call types, each from one source zip:
+The product is QA for Medicare sales calls, so every call is a Medicare call. The three "document types" are call types, each from one source zip:
 
 | Segment | Source zip | Expected `call_type` | Calls in zip | Read | Selected | Golden | Dev |
 |---|---|---|---|---|---|---|---|
@@ -33,5 +33,5 @@ Why the filter: source zips are labelled by campaign, not content. `medicare_inb
 ## Files
 
 - `manifest.csv`: call_id, segment, source zip and member, file size, duration, word count, split (`golden` / `dev`).
-- `golden/golden_v2.jsonl`: hand labels for the 10 golden calls (schema v2); rules in `golden/LABELING.md`.
+- `golden/golden_v3.jsonl`: hand labels for the 10 golden calls (schema v3); rules in `golden/LABELING.md`. `golden/opus_v3.jsonl` and `golden/astra_v3.jsonl` are the blind model labels used for adjudication, and `golden/review_v3.json` records each adjudication decision.
 - `raw/<segment>/<call_id>.json`: the selected transcripts (AssemblyAI JSON as published).

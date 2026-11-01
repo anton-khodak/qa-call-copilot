@@ -17,7 +17,7 @@ def test_prompt_hash_changes_with_text(tmp_path):
 
 def test_prompt_v1_covers_required_topics():
     t = load_prompt("v1").text.lower()
-    for kw in ["null", "unknown", "not_applicable", "speaker", "asr", "benefits", "verbatim"]:
+    for kw in ["null", "unknown", "speaker", "asr", "verbatim"]:
         assert kw in t, kw
 
 
@@ -55,7 +55,12 @@ def test_prompt_v2_loads_and_differs_from_v1():
 
 def test_prompt_v2_covers_v1_topics_and_fixes():
     t = load_prompt("v2").text
-    for kw in ["null", "unknown", "not_applicable", "speaker", "asr", "benefits", "verbatim"]:
+    for kw in ["null", "unknown", "speaker", "asr", "verbatim"]:
         assert kw in t.lower(), kw
-    for heading in ["## Who started the call", "## Call type", "## Deciding the disclaimer"]:
+    for heading in ["## Who started the call", "## Call type"]:
         assert heading in t, heading
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_prompts_do_not_mention_disclaimer(version):
+    assert "disclaimer" not in load_prompt(version).text.lower()

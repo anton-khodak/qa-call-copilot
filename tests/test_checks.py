@@ -8,7 +8,6 @@ T = "Hi, this call may be recorded for quality and training purposes. How can I 
 def _rec(**over):
     d = {**VALID, "compliance": {
         "recording_disclosed": {"value": True, "evidence": "this call may be recorded"},
-        "disclaimer_before_benefits": {"value": "not_applicable", "evidence": None},
     }}
     d.update(over)
     return CallQARecord.model_validate(d)
@@ -29,17 +28,8 @@ def test_invented_quote_flagged():
 def test_null_evidence_no_flag():
     rec = _rec(compliance={
         "recording_disclosed": {"value": None, "evidence": None},
-        "disclaimer_before_benefits": {"value": "not_applicable", "evidence": None},
     })
     assert run_checks(rec, T, "plan_sales") == []
-
-
-def test_disclaimer_on_non_plan_sales_flagged():
-    rec = _rec(call_type="medical_equipment", compliance={
-        "recording_disclosed": {"value": True, "evidence": "this call may be recorded"},
-        "disclaimer_before_benefits": {"value": "yes", "evidence": None},
-    })
-    assert "disclaimer_not_plan_sales" in run_checks(rec, T, "medical_equipment")
 
 
 def test_call_type_mismatch_flagged():
@@ -54,12 +44,8 @@ def test_clean_record_no_warnings():
 def test_invented_evidence_in_record_flagged():
     rec = _rec(compliance={
         "recording_disclosed": {"value": True, "evidence": "calls are monitored by our legal team"},
-        "disclaimer_before_benefits": {"value": "no", "evidence": "we do not offer every plan"},
     })
-    assert run_checks(rec, T, "plan_sales") == [
-        "evidence_not_found:recording_disclosed",
-        "evidence_not_found:disclaimer_before_benefits",
-    ]
+    assert run_checks(rec, T, "plan_sales") == ["evidence_not_found:recording_disclosed"]
 
 
 def test_checks_do_not_mutate_record():

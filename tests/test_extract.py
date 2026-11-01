@@ -139,7 +139,7 @@ def test_record_keys_match_spec():
     rec = _record()
     assert list(rec.keys()) == keys
     assert (rec["model"], rec["provider"], rec["prompt_hash"], rec["schema_version"]) == (
-        "openai/gpt-4o-mini", "openrouter", P.hash, "v2")
+        "openai/gpt-4o-mini", "openrouter", P.hash, "v3")
     assert rec["seed"] == 42 and rec["first_raw_output"] is None
     assert rec["cost_usd"] == pytest.approx((1000 * 0.15 + 200 * 0.60) / 1e6)
 

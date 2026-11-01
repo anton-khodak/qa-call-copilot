@@ -28,17 +28,6 @@
    "opus": [],
    "choice": "opus",
    "astra": []
-  },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "yes",
-    "evidence": "Now what we do here is help those that are on Medicare just review their benefits to make sure you're receiving all of the Medicare benefits and savings available to you."
-   },
-   "opus": {
-    "value": "not_applicable",
-    "evidence": null
-   },
-   "choice": "opus"
   }
  },
  "2021-08-19-21-16-45_0ff1b4e8-9234-4954-9847-5a602deb7673_v2bRSB6k4rNSWPOP3dXneovEfY7YKVYsDunzLGBPst0XZuS2hX24eOVA_-_Copy": {
@@ -157,17 +146,6 @@
    ],
    "choice": "astra"
   },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "yes",
-    "evidence": "What we do here is help individuals that'on Medicare review their benefits to see if you can increase your savings or benefits at this time."
-   },
-   "opus": {
-    "value": "no",
-    "evidence": null
-   },
-   "choice": "opus"
-  },
   "outcome": {
    "human": "other",
    "opus": "not_interested",
@@ -179,17 +157,6 @@
   "direction": {
    "human": "inbound",
    "opus": "outbound",
-   "choice": "opus"
-  },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "yes",
-    "evidence": "Now, before I go over this information, I do have to get your verbal agreement that it'okay for me to review these different plans [DRUG] your area."
-   },
-   "opus": {
-    "value": "no",
-    "evidence": null
-   },
    "choice": "opus"
   },
   "agent_handoff": {
@@ -227,17 +194,6 @@
     }
    ],
    "choice": "human"
-  },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "yes",
-    "evidence": "So additionally, Mrs. [PERSON_NAME] [PERSON_NAME] [PERSON_NAME], I want to confirm with you that you are officially opting in to receive information and a follow up phone call regarding [MEDICAL_PROCESS] [MEDICAL_PROCESS] [MEDICAL_PROCESS]."
-   },
-   "opus": {
-    "value": "not_applicable",
-    "evidence": null
-   },
-   "choice": "opus"
   }
  },
  "2021-08-27-19-48-40_6468ba97-7563-4e43-bebf-3f87ec6599f4_RGBDF757ED5CF6EF1A5F8641AC8A3DE548EF437EEE5CK38K01": {
@@ -254,17 +210,6 @@
     }
    ],
    "opus": [],
-   "choice": "opus"
-  },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "yes",
-    "evidence": "What we do here is make sure that you are receiving all of the available Medicare benefits. And so what I do is verify a few items and then pull up the available options in your area."
-   },
-   "opus": {
-    "value": "no",
-    "evidence": null
-   },
    "choice": "opus"
   }
  },
@@ -307,21 +252,6 @@
      "handled": true
     }
    ],
-   "choice": "human"
-  },
-  "compliance.disclaimer_before_benefits": {
-   "human": {
-    "value": "not_applicable",
-    "evidence": null
-   },
-   "opus": {
-    "value": "not_applicable",
-    "evidence": null
-   },
-   "astra": {
-    "value": "no",
-    "evidence": null
-   },
    "choice": "human"
   }
  },

@@ -1,4 +1,5 @@
 import enum
+import json
 
 import pydantic
 import pytest
@@ -13,7 +14,6 @@ VALID = {
     "objections": [{"type": "price", "handled": True}],
     "compliance": {
         "recording_disclosed": {"value": True, "evidence": "this call is recorded"},
-        "disclaimer_before_benefits": {"value": "not_applicable", "evidence": None},
     },
     "agent_handoff": True,
 }
@@ -23,7 +23,6 @@ MODELS = [
     schema.Objection,
     schema.Compliance,
     schema.RecordingDisclosed,
-    schema.DisclaimerBeforeBenefits,
 ]
 
 
@@ -42,14 +41,14 @@ def test_extra_key_rejected():
 
 
 def test_every_enum_has_other_except_fixed_ones():
-    # Direction uses `unknown`, DisclaimerValue uses `not_applicable` (spec §4)
-    fixed = {schema.Direction: "unknown", schema.DisclaimerValue: "not_applicable"}
+    # Direction uses `unknown` (spec §4)
+    fixed = {schema.Direction: "unknown"}
     enums = [
         obj
         for obj in vars(schema).values()
         if isinstance(obj, type) and issubclass(obj, enum.Enum) and obj.__module__ == schema.__name__
     ]
-    assert len(enums) == 5
+    assert len(enums) == 4
     for e in enums:
         assert fixed.get(e, "other") in {m.value for m in e}, e
 
@@ -73,7 +72,7 @@ def _objects(node):
 
 def test_strict_schema_shape():
     objs = list(_objects(strict_json_schema()))
-    assert len(objs) == 5
+    assert len(objs) == 4
     for obj in objs:
         assert obj["additionalProperties"] is False
         assert obj["required"] == list(obj["properties"])
@@ -91,12 +90,8 @@ def test_strict_schema_has_no_refs():
     assert item["additionalProperties"] is False and "price" in item["properties"]["type"]["enum"]
 
 
-def test_schema_version():
-    assert SCHEMA_VERSION == "v2"
-
-
-def test_v2_fields():
-    # Medicare-only scope: compliance QA is the product; intent and next_action were dropped
+def test_v3_fields():
+    # Medicare-only scope; intent and next_action dropped in v2, the disclaimer field in v3
     assert list(CallQARecord.model_fields) == [
         "call_type", "direction", "outcome", "objections", "compliance", "agent_handoff"]
     assert set(schema.CallType.__members__) == {"plan_sales", "medical_equipment", "member_service", "other"}
@@ -105,3 +100,16 @@ def test_v2_fields():
 def test_recording_rule_only_false_when_opening_present():
     desc = schema.RecordingDisclosed.model_fields["value"].description.lower()
     assert "opening" in desc and "null" in desc
+
+
+def test_schema_v3_has_no_disclaimer():
+    assert SCHEMA_VERSION == "v3"
+    assert list(schema.Compliance.model_fields) == ["recording_disclosed"]
+    assert "disclaimer" not in json.dumps(strict_json_schema()).lower()
+
+
+def test_disclaimer_key_rejected():
+    d = {**VALID, "compliance": {**VALID["compliance"],
+                                 "disclaimer_before_benefits": {"value": "no", "evidence": None}}}
+    with pytest.raises(pydantic.ValidationError):
+        CallQARecord.model_validate(d)

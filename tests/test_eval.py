@@ -141,8 +141,9 @@ def test_markdown_table_has_repair_column():
 def test_field_table_lists_every_field():
     head = field_table([_row()]).splitlines()[0]
     for col in ["call_type", "direction", "outcome", "agent_handoff", "recording_disclosed",
-                "disclaimer_before_benefits", "obj P", "obj R", "obj F1", "handled"]:
+                "obj P", "obj R", "obj F1", "handled"]:
         assert col in head, col
+    assert "disclaimer" not in head
     assert "| 1.00 |" in field_table([_row()]).splitlines()[2]
 
 
@@ -157,4 +158,4 @@ def test_evaluate_writes_both_tables(tmp_path):
     golden.write_text(json.dumps({"call_id": "a", "label": VALID}) + "\n")
     evaluate(runs, tmp_path, golden_path=golden, manifest=manifest)
     md = (tmp_path / "metrics.md").read_text()
-    assert "repaired %" in md and "disclaimer_before_benefits" in md
+    assert "repaired %" in md and "recording_disclosed" in md

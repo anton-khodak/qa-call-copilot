@@ -8,8 +8,8 @@ Turns raw Medicare sales and service call transcripts ([CallCenterEN](https://hu
 - **Schema:** `src/schema.py`; field descriptions are the definitions sent to the model.
 - **Report:** `REPORT.md`: comparison table, error analysis, production choice.
 - **Prompts:** `prompts/extract_v1.md` (baseline) and `prompts/extract_v2.md` (fixes from dev-set errors); what changed and why in `prompts/CHANGELOG.md`.
-- **Golden set:** 10 calls in `data/golden/golden_v2.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus_v2.jsonl`, `astra_v2.jsonl`; every decision in `review_v2.json`).
-- **Results:** `results/metrics.md` (summary + per-field accuracy), `results/per_class.csv`, `results/golden_errors.csv` (every golden disagreement), raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only) and qwen3 runs from before the Ollama client showed the schema to the model.
+- **Golden set:** 10 calls in `data/golden/golden_v3.jsonl`, labelled by hand per `data/golden/LABELING.md` and adjudicated against blind labels from two models (`opus_v3.jsonl`, `astra_v3.jsonl`; every decision in `review_v3.json`).
+- **Results:** `results/metrics.md` (summary + per-field accuracy), `results/per_class.csv`, `results/golden_errors.csv` (every golden disagreement), raw runs in `results/runs/`. `results/archive/` holds superseded runs kept for the report: the first three-domain schema (metrics only), qwen3 runs from before the Ollama client showed the schema to the model, and all schema-v2 runs, which still had the disclaimer field (`schema_v2_with_disclaimer/`).
 - **Validation and repair:** `src/extract.py`: schema validation, one repair call with the validation error, then `failed` (tests in `tests/test_extract.py`).
 - **Status:** steps 1-4 done.
 
@@ -56,7 +56,7 @@ Results go to `results/runs/<run_id>.jsonl`, one line per call and run, with mod
 
 ## Layout
 
-- `src/schema.py`: Pydantic QA record (`SCHEMA_VERSION = "v2"`)
+- `src/schema.py`: Pydantic QA record (`SCHEMA_VERSION = "v3"`)
 - `src/dataset.py`, `data/download.py`: call selection, manifest, transcript loading
 - `src/clients/`: model interface, OpenRouter backend, Ollama backend, retry/backoff
 - `src/eval.py`: metrics against the golden set and source call types

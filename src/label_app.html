@@ -161,7 +161,7 @@ function evidence(name) {
 
 function buildForm() {
   const P = S.schema.properties, C = P.compliance.properties;
-  const rec = C.recording_disclosed.properties, dis = C.disclaimer_before_benefits.properties;
+  const rec = C.recording_disclosed.properties;
   const objT = P.objections.items.properties.type;
   const objHelp = splitDesc(objT.description, objT.enum).help;
   let h = "";
@@ -183,10 +183,6 @@ function buildForm() {
        "null": "starts mid-call, or too short or broken to tell"}) +
     `<p class="help" style="margin-top:8px">evidence — ${esc(rec.evidence.description)}</p>` + evidence("rec_evidence"));
 
-  const dd = splitDesc(dis.value.description, dis.value.enum);
-  h += fieldBox("compliance.disclaimer_before_benefits.value", "compliance.disclaimer_before_benefits",
-    dd.intro, radios("dis_value", dis.value.enum.map(v => [v, v]), dd.help) +
-    `<p class="help" style="margin-top:8px">evidence — ${esc(dis.evidence.description)}</p>` + evidence("dis_evidence"));
 
   h += fieldBox("agent_handoff", "agent_handoff", P.agent_handoff.description,
     radios("agent_handoff", [[true, "true"], [false, "false"]]));
@@ -215,11 +211,9 @@ function fill(label) {
     const cb = $(`[name=obj_${o.type}]`); if (cb) cb.checked = true;
     setRadio(`objh_${o.type}`, o.handled);
   }
-  const c = label.compliance || {}, rec = c.recording_disclosed || {}, dis = c.disclaimer_before_benefits || {};
+  const c = label.compliance || {}, rec = c.recording_disclosed || {};
   if (rec.value !== "" && rec.value !== undefined) setRadio("rec_value", rec.value);
-  setRadio("dis_value", dis.value);
   $("[name=rec_evidence]").value = rec.evidence || "";
-  $("[name=dis_evidence]").value = dis.evidence || "";
   syncObjections(); checkEvidence(); dirty = false;
 }
 
@@ -234,7 +228,6 @@ function collect() {
     objections,
     compliance: {
       recording_disclosed: {value: getRadio("rec_value"), evidence: text("rec_evidence")},
-      disclaimer_before_benefits: {value: getRadio("dis_value"), evidence: text("dis_evidence")},
     },
     agent_handoff: getRadio("agent_handoff"),
   };
@@ -249,7 +242,7 @@ function syncObjections() {
 
 function checkEvidence() {
   const t = norm(S.calls[cur].text);
-  for (const n of ["rec_evidence", "dis_evidence"]) {
+  for (const n of ["rec_evidence"]) {
     const v = $(`[name=${n}]`).value.trim();
     $(`[data-warn=${n}]`).textContent = v && !t.includes(norm(v)) ? "Not found verbatim in transcript" : "";
   }

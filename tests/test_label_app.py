@@ -23,8 +23,8 @@ def test_save_label_keeps_draft_and_reports_errors(tmp_path):
     assert json.loads(p.read_text())["label"] == draft
 
 
-def test_labels_go_to_golden_v2():
-    assert label_app.GOLDEN.name == "golden_v2.jsonl"
+def test_labels_go_to_golden_v3():
+    assert label_app.GOLDEN.name == "golden_v3.jsonl"
 
 
 def _setup(tmp_path, mine, **theirs):

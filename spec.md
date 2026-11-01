@@ -3,6 +3,8 @@
 
 Input spec for implementation. Source of truth: `Project spec.md` (the project being built) + the HW1 brief (`Домашні завдання _ 2 потік _ AI Engineering.pdf`) + lecturer guidance (`Overview.md`). Where this file proposes a default, it is marked **Default** and can be changed during brainstorming.
 
+> **Revision 2026-11-01 — disclaimer field removed (schema v3).** `compliance.disclaimer_before_benefits` is dropped from the schema, prompts, golden set (`golden_v3` = `golden_v2` minus that field), code checks and metrics. Every combination was re-run on schema v3; the schema-v2 results are archived in `results/archive/schema_v2_with_disclaimer/`. Schema requirements still hold: 6 fields, several enums, nested `objections` list and `compliance` object. Sections below describe v3; the 2026-10-24 note is kept as history.
+
 > **Revision 2026-10-24 — Medicare-only scope (schema v2).** The business outcome is compliance QA on every call (CMS disclaimer before benefits), so the data is Medicare-only, split into three call types instead of three business domains. Why: `medicare_inbound.zip` turned out to be ~95% non-Medicare (vet clinics etc.), only Medicare calls exercise the compliance rules, and the stage-2 RAG source is the CMS Medicare guidelines. `domain` became `call_type`; `customer_intent` and `next_action` were dropped (weak link to compliance, hardest to label consistently). §3, §4, §11 and §16 are updated; the 3-domain results are archived in `results/archive/schema_v1_three_domains/`.
 
 ## 1. Goal
@@ -33,7 +35,7 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 **Licence constraint (CC BY-NC 4.0, no redistribution):** raw transcripts are NOT committed. The brief requires `data/` with texts and golden set, so `data/` contains:
 - `data/download.py` (or `make data`) — fetches the chosen zips (HTTP range reads) and extracts only the selected calls. The dataset is not gated; `HF_TOKEN` is optional.
 - `data/manifest.csv` — selected call IDs, segment, duration, word count, split (golden / dev). Committed.
-- `data/golden/golden_v2.jsonl` — hand labels (own work), keyed by call ID. Committed.
+- `data/golden/golden_v3.jsonl` — hand labels (own work), keyed by call ID. Committed.
 - `data/raw/` — downloaded transcripts, gitignored.
 - `data/README.md` — dataset described by category (segments, counts, length distribution, source caveats); lecturer accepts this.
 
@@ -45,12 +47,12 @@ Grading: 30 points. Most points come from Step 2 (measurements) and Step 3 (vers
 | outbound_plan | `insurance_outbound.zip` | plan_sales | 3 |
 | outbound_equipment | `medical_equipment_outbound.zip` | medical_equipment | 3 |
 
-Zips are labelled by campaign, not content, so a call is kept only if its text mentions "Medicare". Side effect: very short/broken calls rarely mention Medicare, so they are under-represented (shortest selected call: 227 words). 10 calls form the golden set (7 of them plan sales, where the disclaimer rule applies); the remaining 26 are the dev set. Details in `data/README.md`.
+Zips are labelled by campaign, not content, so a call is kept only if its text mentions "Medicare". Side effect: very short/broken calls rarely mention Medicare, so they are under-represented (shortest selected call: 227 words). 10 calls form the golden set (7 from the plan-sales campaigns); the remaining 26 are the dev set. Details in `data/README.md`.
 
 **Rules**
 - Feed the transcript `text` raw, as delivered (no cleaning). Keep `words` on disk for stage 2 timestamps.
 - Golden labels are made from the transcript only, never from model output. Labelling rules live in `data/golden/LABELING.md` and match the schema field descriptions.
-- Golden set contains only what can be determined from the text. Versioned (`golden_v1`, `golden_v2`); compare runs only within one version.
+- Golden set contains only what can be determined from the text. Versioned (`golden_v1`, `golden_v2`, `golden_v3`); compare runs only within one version.
 - Prompt changes are written while looking at the dev set, not the golden set, so prompt v2 doesn't leak golden answers.
 - Calls average ~7 min (~1–2k words); fit in context, no chunking needed. **Default:** log a warning and chunk only if a call exceeds the local model's context.
 
@@ -59,18 +61,17 @@ Each field is described once with `Field(description=...)` and passed via struct
 
 | Field | Type | Kind | Notes |
 |---|---|---|---|
-| `call_type` | enum: plan_sales, medical_equipment, member_service, other | inferred | Expected value known from the source segment → free accuracy check on all 36 calls; decides whether the disclaimer rule applies |
+| `call_type` | enum: plan_sales, medical_equipment, member_service, other | inferred | Expected value known from the source segment → free accuracy check on all 36 calls |
 | `direction` | enum: inbound, outbound, unknown | inferred | |
 | `outcome` | enum: sale, transfer, callback, not_interested, issue_resolved, other | inferred | `issue_resolved` for member service calls; scored per class |
 | `objections` | list of `{type: enum(price, already_covered, need_to_think, spouse_or_family, not_eligible, distrust, timing, other), handled: bool}` | extracted | Nested list (brief requirement). Empty list if none |
-| `compliance` | object: `recording_disclosed: {value: bool \| null, evidence: str \| null}`, `disclaimer_before_benefits: {value: enum(yes, no, not_applicable), evidence: str \| null}` | extracted | Nested object; **the product**. `recording_disclosed = false` only when the call's opening is in the transcript, else `null`. `not_applicable` when no Medicare plan benefits are discussed. `evidence` = short verbatim quote |
+| `compliance` | object: `recording_disclosed: {value: bool \| null, evidence: str \| null}` | extracted | Nested object. `recording_disclosed = false` only when the call's opening is in the transcript, else `null`. `evidence` = short verbatim quote |
 | `agent_handoff` | bool | extracted | Call passed to another agent mid-call (e.g. screener → licensed agent) |
 
-6 fields, ≥ 1 enum, ≥ 1 nested object/list: satisfied. Dropped in v2: `domain` (→ `call_type`), `customer_intent`, `next_action` + `next_action_note`.
+6 fields, ≥ 1 enum, ≥ 1 nested object/list: satisfied. Dropped in v2: `domain` (→ `call_type`), `customer_intent`, `next_action` + `next_action_note`. Dropped in v3: `compliance.disclaimer_before_benefits`.
 
 **Code checks (code verifies, model extracts)** — run after schema validation, logged as warnings, never silently fixed:
 - every `evidence` quote fuzzy-matches the transcript (e.g. rapidfuzz partial ratio ≥ 90); otherwise flag `evidence_not_found`;
-- `disclaimer_before_benefits != not_applicable` while predicted `call_type` is not `plan_sales` → flag;
 - predicted `call_type` vs the source segment's expected `call_type` → flag.
 
 ## 5. Model interface
@@ -83,7 +84,7 @@ Each field is described once with `Field(description=...)` and passed via struct
 
 ## 6. Prompts
 - `prompts/extract_v1.md`, `prompts/extract_v2.md`, `prompts/CHANGELOG.md` (what changed, why, which dev-set errors motivated it).
-- Prompt covers only what the schema can't: when to use null / `unknown` / `not_applicable`, inferring agent vs customer without speaker labels, handling ASR errors, multiple agents, what counts as "benefits discussed".
+- Prompt covers only what the schema can't: when to use null / `unknown`, inferring agent vs customer without speaker labels, handling ASR errors, multiple agents.
 - Prompt version and file hash logged with every result.
 
 ## 7. Sampling configs
@@ -107,7 +108,7 @@ Results are committed (outputs contain only already-masked derived data — re-c
 - Budget: ≤ $5 API total; estimate cost before a full run and print it. Local model must run on an ordinary laptop — **Default:** if local runs are too slow, cut repeated runs to the golden set only and note it in REPORT.md.
 
 ## 11. Metrics (`eval.py`)
-Computed against `golden_v2`, per combination:
+Computed against `golden_v3`, per combination:
 - **Per-field accuracy**: exact match for enums/bools; `objections` → precision/recall/F1 on types + `handled` accuracy on matched types; `compliance.*.value` exact match (evidence checked by code, not scored vs golden).
 - **Extracted vs inferred** fields reported separately; inferred enums also as **per-class accuracy**.
 - `call_type` accuracy also on all 36 calls against the source segment.
@@ -118,7 +119,7 @@ Computed against `golden_v2`, per combination:
 
 ## 12. REPORT.md
 - Table: model × prompt version × sampling with all metrics above.
-- 3–5 error analyses: what was predicted instead of what, and why (expected candidates: agent/customer confusion without speaker labels, ASR errors on product names, handoffs, disclaimer timing).
+- 3–5 error analyses: what was predicted instead of what, and why (expected candidates: agent/customer confusion without speaker labels, ASR errors on product names, handoffs, recording notices).
 - Production choice in one paragraph + conditions that would change it (volume, cost, latency, data-residency/self-hosting needs).
 
 ## 13. Repo layout and commands

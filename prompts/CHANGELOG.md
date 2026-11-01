@@ -1,5 +1,10 @@
 # Prompt changelog
 
+## v1 and v2 (revised for schema v3) — 2026-11-01
+Schema v3 drops `compliance.disclaimer_before_benefits`, so the prompt text about it is removed from both versions. These are scope edits, not fixes, so the version numbers stay; the file hashes changed and every result records them. All combinations were re-run.
+- v1 and v2: removed the `not_applicable` rule for the disclaimer and the "Benefits discussed" section (it existed only to time the disclaimer); the "Unknown, null and not_applicable" heading is now "Unknown and null".
+- v2: removed the "Deciding the disclaimer" section. v2 is now v1 plus "Who started the call" and "Call type"; the v2 entry below describes the original three changes.
+
 ## v2 — 2026-10-31
 Written from the v1 errors on the **26 dev calls only** (deterministic runs of all three models). No golden transcript or per-call golden error was opened; the aggregate v1 golden scores in `results/metrics.md` (e.g. gpt-4o-mini direction 0.10) were visible, so v2's choice of fields was not blind to them, but every change is backed by the dev-set numbers below. v2 = v1 plus three sections; nothing else changed, so v1 → v2 differences come from these.
 - **"Who started the call" (`direction`).** gpt-4o-mini never answered `outbound` on the 18 outbound dev calls: outbound_plan → 5 `unknown`, 4 `inbound`; outbound_equipment → 4 `inbound`, 4 `unknown`, 1 `outbound`. The openings are clear ("the purpose of my call is…", "I'm calling about your benefits", "the one who called you a while ago"), so v2 lists these cues. It also covers the inbound_plan opening, a screener's warm transfer ("I have Ms. … on the line, she is interested in…"), which gpt-4o-mini marked `unknown` on 3 of 8 dev calls.

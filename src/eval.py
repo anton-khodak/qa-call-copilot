@@ -16,7 +16,7 @@ from src.golden import load_golden_partial
 from src.schema import CallQARecord
 
 INFERRED = ["call_type", "direction", "outcome"]
-EXTRACTED = ["agent_handoff", "recording_disclosed", "disclaimer_before_benefits"]
+EXTRACTED = ["agent_handoff", "recording_disclosed"]
 GOLDEN_COLUMNS = (
     [f"acc_{f}" for f in INFERRED + EXTRACTED]
     + ["obj_precision", "obj_recall", "obj_f1", "obj_handled_acc", "acc_extracted", "acc_inferred",
@@ -63,7 +63,6 @@ def field_values(parsed: dict | None) -> dict:
         **{f: parsed[f] for f in INFERRED},
         "agent_handoff": parsed["agent_handoff"],
         "recording_disclosed": c["recording_disclosed"]["value"],
-        "disclaimer_before_benefits": c["disclaimer_before_benefits"]["value"],
     }
 
 
@@ -190,7 +189,7 @@ def field_table(rows: list[dict]) -> str:
 def evaluate(
     runs_dir: Path = Path("results/runs"),
     out_dir: Path = Path("results"),
-    golden_path: Path = Path("data/golden/golden_v2.jsonl"),
+    golden_path: Path = Path("data/golden/golden_v3.jsonl"),
     manifest: Path = Path("data/manifest.csv"),
 ) -> list[dict]:
     source_call_types = {r.call_id: SEGMENTS[r.segment][1] for r in read_manifest(manifest)}
@@ -215,7 +214,7 @@ def evaluate(
         w.writeheader()
         w.writerows(per_class_rows)
     table = markdown_table(rows) + "\nGolden-set accuracy per field (median over runs):\n\n" + field_table(rows)
-    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v2.jsonl is filled.\n"
+    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v3.jsonl is filled.\n"
     (out_dir / "metrics.md").write_text(table + note)
     print(table + note)
     return rows

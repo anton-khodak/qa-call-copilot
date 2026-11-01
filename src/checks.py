@@ -5,7 +5,7 @@ import re
 
 from rapidfuzz import fuzz
 
-from src.schema import CallQARecord, CallType, DisclaimerValue
+from src.schema import CallQARecord
 
 _PUNCT = re.compile(r"[^\w\s\[\]]")
 _SPACE = re.compile(r"\s+")
@@ -24,15 +24,9 @@ def evidence_matches(quote: str, transcript: str, threshold: int = 90) -> bool:
 
 def run_checks(record: CallQARecord, transcript: str, source_call_type: str) -> list[str]:
     warnings = []
-    for name in ("recording_disclosed", "disclaimer_before_benefits"):
-        evidence = getattr(record.compliance, name).evidence
-        if evidence is not None and not evidence_matches(evidence, transcript):
-            warnings.append(f"evidence_not_found:{name}")
-    if (
-        record.compliance.disclaimer_before_benefits.value != DisclaimerValue.not_applicable
-        and record.call_type != CallType.plan_sales
-    ):
-        warnings.append("disclaimer_not_plan_sales")
+    evidence = record.compliance.recording_disclosed.evidence
+    if evidence is not None and not evidence_matches(evidence, transcript):
+        warnings.append("evidence_not_found:recording_disclosed")
     if record.call_type.value != source_call_type:
         warnings.append(f"call_type_mismatch:predicted={record.call_type.value},source={source_call_type}")
     return warnings

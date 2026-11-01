@@ -8,7 +8,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "v2"
+SCHEMA_VERSION = "v3"
 
 
 class CallType(str, Enum):
@@ -44,12 +44,6 @@ class ObjectionType(str, Enum):
     other = "other"
 
 
-class DisclaimerValue(str, Enum):
-    yes = "yes"
-    no = "no"
-    not_applicable = "not_applicable"
-
-
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -82,25 +76,8 @@ class RecordingDisclosed(_Strict):
     )
 
 
-class DisclaimerBeforeBenefits(_Strict):
-    value: DisclaimerValue = Field(
-        description=(
-            "CMS third-party marketing disclaimer timing. yes: the agent gave the required disclaimer (e.g. 'we "
-            "do not offer every plan available in your area') before describing plan benefits; no: benefits "
-            "were described before or without the disclaimer; not_applicable: no Medicare plan benefits were "
-            "discussed (e.g. equipment offers or service questions only)."
-        )
-    )
-    evidence: str | None = Field(
-        description="Short verbatim quote of the disclaimer from the transcript; null if none was given."
-    )
-
-
 class Compliance(_Strict):
     recording_disclosed: RecordingDisclosed = Field(description="Whether call recording was disclosed.")
-    disclaimer_before_benefits: DisclaimerBeforeBenefits = Field(
-        description="Whether the Medicare disclaimer was given before benefits were discussed."
-    )
 
 
 class CallQARecord(_Strict):

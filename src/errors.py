@@ -14,7 +14,7 @@ from src.schema import CallQARecord
 
 ERROR_COLUMNS = ["model", "prompt_version", "sampling_name", "call_id", "run_idx", "field", "gold", "predicted",
                  "evidence"]
-COMPLIANCE = ("recording_disclosed", "disclaimer_before_benefits")
+COMPLIANCE = ("recording_disclosed",)
 
 
 def _types(objections: list[dict]) -> str:
@@ -46,7 +46,7 @@ def golden_errors(records: list[dict], golden: dict[str, CallQARecord]) -> list[
 def write_errors(
     runs_dir: Path = Path("results/runs"),
     out: Path = Path("results/golden_errors.csv"),
-    golden_path: Path = Path("data/golden/golden_v2.jsonl"),
+    golden_path: Path = Path("data/golden/golden_v3.jsonl"),
     manifest: Path = Path("data/manifest.csv"),
 ) -> int:
     golden, _ = load_golden_partial(golden_path, manifest)

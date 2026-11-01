@@ -29,14 +29,12 @@ def test_failed_record_is_one_row_with_predicted_failed():
 
 def test_evidence_is_predicted_quote_for_compliance_fields():
     pred = copy.deepcopy(VALID)
-    pred["compliance"]["recording_disclosed"] = {"value": None, "evidence": None}
-    pred["compliance"]["disclaimer_before_benefits"] = {"value": "not_applicable", "evidence": "some quote"}
+    pred["compliance"]["recording_disclosed"] = {"value": False, "evidence": "some quote"}
     g = copy.deepcopy(VALID)
     g["compliance"]["recording_disclosed"] = {"value": True, "evidence": None}
-    g["compliance"]["disclaimer_before_benefits"] = {"value": "no", "evidence": None}
     rows = {r["field"]: r for r in golden_errors([rec("a", parsed=pred)], {"a": gold(**g)})}
-    assert rows["recording_disclosed"]["predicted"] is None and rows["recording_disclosed"]["gold"] is True
-    assert rows["disclaimer_before_benefits"]["evidence"] == "some quote"
+    assert rows["recording_disclosed"]["predicted"] is False and rows["recording_disclosed"]["gold"] is True
+    assert rows["recording_disclosed"]["evidence"] == "some quote"
 
 
 def test_objection_mismatch_is_one_row_with_sorted_types():
