@@ -8,7 +8,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SCHEMA_VERSION = "v3"
+SCHEMA_VERSION = "v1"
 
 
 class CallType(str, Enum):

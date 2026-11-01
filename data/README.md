@@ -33,5 +33,5 @@ Why the filter: source zips are labelled by campaign, not content. `medicare_inb
 ## Files
 
 - `manifest.csv`: call_id, segment, source zip and member, file size, duration, word count, split (`golden` / `dev`).
-- `golden/golden_v3.jsonl`: hand labels for the 10 golden calls (schema v3); rules in `golden/LABELING.md`. `golden/opus_v3.jsonl` and `golden/astra_v3.jsonl` are the blind model labels used for adjudication, and `golden/review_v3.json` records each adjudication decision.
+- `golden/golden.jsonl`: hand labels for the 10 golden calls; rules in `golden/LABELING.md`. `golden/opus.jsonl` and `golden/astra.jsonl` are the blind model labels used for adjudication, and `golden/review.json` records each adjudication decision.
 - `raw/<segment>/<call_id>.json`: the selected transcripts (AssemblyAI JSON as published).

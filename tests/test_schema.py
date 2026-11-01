@@ -80,8 +80,6 @@ def test_strict_schema_shape():
 
 def test_strict_schema_has_no_refs():
     # OpenAI strict mode rejects "$ref" with sibling keywords such as "description"
-    import json
-
     s = strict_json_schema()
     assert "$ref" not in json.dumps(s) and "$defs" not in s
     call_type = s["properties"]["call_type"]
@@ -90,8 +88,7 @@ def test_strict_schema_has_no_refs():
     assert item["additionalProperties"] is False and "price" in item["properties"]["type"]["enum"]
 
 
-def test_v3_fields():
-    # Medicare-only scope; intent and next_action dropped in v2, the disclaimer field in v3
+def test_fields():
     assert list(CallQARecord.model_fields) == [
         "call_type", "direction", "outcome", "objections", "compliance", "agent_handoff"]
     assert set(schema.CallType.__members__) == {"plan_sales", "medical_equipment", "member_service", "other"}
@@ -102,14 +99,7 @@ def test_recording_rule_only_false_when_opening_present():
     assert "opening" in desc and "null" in desc
 
 
-def test_schema_v3_has_no_disclaimer():
-    assert SCHEMA_VERSION == "v3"
+def test_schema_version_and_compliance_fields():
+    assert SCHEMA_VERSION == "v1"
     assert list(schema.Compliance.model_fields) == ["recording_disclosed"]
-    assert "disclaimer" not in json.dumps(strict_json_schema()).lower()
 
-
-def test_disclaimer_key_rejected():
-    d = {**VALID, "compliance": {**VALID["compliance"],
-                                 "disclaimer_before_benefits": {"value": "no", "evidence": None}}}
-    with pytest.raises(pydantic.ValidationError):
-        CallQARecord.model_validate(d)

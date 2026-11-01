@@ -1,10 +1,8 @@
-# Labelling rules — golden_v3 (schema v3, Medicare-only)
+# Labelling rules — golden set (Medicare-only)
 
-golden_v3 = golden_v2 with `compliance.disclaimer_before_benefits` removed (schema v3, 2026-11-01); every other label is unchanged. The v2 files are in git history.
+Labels are hand-made from the transcript text only (`data/raw/<segment>/<call_id>.json`, field `text`). Never look at model output for a call before or while labelling it. Label only what the text supports; when it doesn't, use the field's fallback value (`unknown`, `null`, `other`) exactly as below. The rules mirror the `Field(description=...)` text in `src/schema.py`; if the two disagree, fix both and re-run the evaluation.
 
-Labels are hand-made from the transcript text only (`data/raw/<segment>/<call_id>.json`, field `text`). Never look at model output for a call before or while labelling it. Label only what the text supports; when it doesn't, use the field's fallback value (`unknown`, `null`, `other`) exactly as below. The rules mirror the `Field(description=...)` text in `src/schema.py`; if the two disagree, fix both and bump the golden version. Compare runs only within one golden version.
-
-File: `data/golden/golden_v3.jsonl`, one JSON object per line, `{"call_id": "<manifest call_id>", "label": {<CallQARecord>}}`, only `golden` rows from `data/manifest.csv`. Check with `uv run python -c "from src.golden import load_golden; print(len(load_golden()))"` (expect `10`).
+File: `data/golden/golden.jsonl`, one JSON object per line, `{"call_id": "<manifest call_id>", "label": {<CallQARecord>}}`, only `golden` rows from `data/manifest.csv`. Check with `uv run python -c "from src.golden import load_golden; print(len(load_golden()))"` (expect `10`).
 
 ## What gets scored
 

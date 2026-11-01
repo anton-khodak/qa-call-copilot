@@ -1,5 +1,4 @@
-"""Golden-set hand labels (data/golden/golden_<version>.jsonl), keyed by call ID (spec §3).
-golden_v3 matches schema v3 (Medicare-only, no disclaimer field)."""
+"""Golden-set hand labels (data/golden/golden.jsonl), keyed by call ID (spec §3)."""
 
 import json
 from pathlib import Path
@@ -11,14 +10,14 @@ from src.schema import CallQARecord
 
 
 def load_golden(
-    path: Path = Path("data/golden/golden_v3.jsonl"), manifest: Path = Path("data/manifest.csv")
+    path: Path = Path("data/golden/golden.jsonl"), manifest: Path = Path("data/manifest.csv")
 ) -> dict[str, CallQARecord]:
     labels, _ = _load(path, manifest, strict=True)
     return labels
 
 
 def load_golden_partial(
-    path: Path = Path("data/golden/golden_v3.jsonl"), manifest: Path = Path("data/manifest.csv")
+    path: Path = Path("data/golden/golden.jsonl"), manifest: Path = Path("data/manifest.csv")
 ) -> tuple[dict[str, CallQARecord], list[str]]:
     """Like load_golden, but skips labels that don't validate yet (labelling in progress).
     Returns (valid labels, skipped call IDs)."""

@@ -46,7 +46,7 @@ def golden_errors(records: list[dict], golden: dict[str, CallQARecord]) -> list[
 def write_errors(
     runs_dir: Path = Path("results/runs"),
     out: Path = Path("results/golden_errors.csv"),
-    golden_path: Path = Path("data/golden/golden_v3.jsonl"),
+    golden_path: Path = Path("data/golden/golden.jsonl"),
     manifest: Path = Path("data/manifest.csv"),
 ) -> int:
     golden, _ = load_golden_partial(golden_path, manifest)

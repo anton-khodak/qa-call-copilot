@@ -15,7 +15,7 @@ errors:
 test:
 	uv run pytest
 
-# local UI for hand-labelling data/golden/golden_v3.jsonl
+# local UI for hand-labelling data/golden/golden.jsonl
 label:
 	uv run python -m src.label_app
 

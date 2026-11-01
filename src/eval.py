@@ -189,7 +189,7 @@ def field_table(rows: list[dict]) -> str:
 def evaluate(
     runs_dir: Path = Path("results/runs"),
     out_dir: Path = Path("results"),
-    golden_path: Path = Path("data/golden/golden_v3.jsonl"),
+    golden_path: Path = Path("data/golden/golden.jsonl"),
     manifest: Path = Path("data/manifest.csv"),
 ) -> list[dict]:
     source_call_types = {r.call_id: SEGMENTS[r.segment][1] for r in read_manifest(manifest)}
@@ -214,7 +214,7 @@ def evaluate(
         w.writeheader()
         w.writerows(per_class_rows)
     table = markdown_table(rows) + "\nGolden-set accuracy per field (median over runs):\n\n" + field_table(rows)
-    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden_v3.jsonl is filled.\n"
+    note = "" if golden else "\nGolden labels missing: accuracy columns are empty until data/golden/golden.jsonl is filled.\n"
     (out_dir / "metrics.md").write_text(table + note)
     print(table + note)
     return rows

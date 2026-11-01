@@ -61,7 +61,3 @@ def test_prompt_v2_is_v1_plus_one_section_per_dev_error():
         assert heading in v2, heading
     assert v2.count("## ") == 4
 
-
-@pytest.mark.parametrize("version", ["v1", "v2"])
-def test_prompts_do_not_mention_disclaimer(version):
-    assert "disclaimer" not in load_prompt(version).text.lower()

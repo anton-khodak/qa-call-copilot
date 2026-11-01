@@ -5,7 +5,7 @@ Which model, prompt and sampling setting should turn raw Medicare sales calls in
 ## Setup
 
 - **Data:** 36 Medicare calls from CallCenterEN (AIxBlock), 12 per campaign (inbound plan sales, outbound plan sales, outbound medical equipment). The ASR text goes in raw, with no speaker labels and PII already masked. 10 calls are the **golden set**: hand-labelled per `data/golden/LABELING.md` and adjudicated against two blind model labellings. The other 26 are the **dev set**, used for prompt work. Details in `data/README.md`.
-- **Schema (v3):** `call_type`, `direction`, `outcome` (inferred enums); `objections` (nested list of type + handled); `compliance.recording_disclosed` (nested object: value + verbatim evidence); `agent_handoff`. Every field is defined once, in `Field(description=...)`, and passed through structured output.
+- **Schema:** `call_type`, `direction`, `outcome` (inferred enums); `objections` (nested list of type + handled); `compliance.recording_disclosed` (nested object: value + verbatim evidence); `agent_handoff`. Every field is defined once, in `Field(description=...)`, and passed through structured output.
 - **Models:**
   - `openai/gpt-4o-mini` via OpenRouter: JSON-schema structured output, $0.15 / $0.60 per 1M tokens.
   - `qwen3:8b` and `qwen3:14b` locally on Ollama: thinking off, 16k context, JSON-schema `format`, with the schema also appended to the system prompt.

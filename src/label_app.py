@@ -2,12 +2,12 @@
 
 Shows each golden transcript next to a form built from the CallQARecord schema (field and option
 help come from the Field descriptions, rules from data/golden/LABELING.md). Every save rewrites
-that call's line in golden_v3.jsonl; incomplete labels are saved as drafts and reported as errors.
+that call's line in golden.jsonl; incomplete labels are saved as drafts and reported as errors.
 
 Model annotators' labels (ANNOTATORS: same format plus a per-field "reasoning" dict) are compared
 with golden; fields where any of them disagrees are listed per call with each one's value and
-reasoning. A pick ("keep mine" / "take <annotator>") is applied to golden_v3.jsonl and recorded in
-review_v3.json with every value at decision time. A decision stays settled while each annotator's
+reasoning. A pick ("keep mine" / "take <annotator>") is applied to golden.jsonl and recorded in
+review.json with every value at decision time. A decision stays settled while each annotator's
 value is the one it saw; an annotator added later that disagrees reopens the field."""
 
 import json
@@ -20,14 +20,14 @@ import pydantic
 from src.dataset import load_transcript, read_manifest
 from src.schema import CallQARecord, strict_json_schema
 
-GOLDEN = Path("data/golden/golden_v3.jsonl")
+GOLDEN = Path("data/golden/golden.jsonl")
 MANIFEST = Path("data/manifest.csv")
 RULES = Path("data/golden/LABELING.md")
 ANNOTATORS = {
-    "opus": Path("data/golden/opus_v3.jsonl"),  # Claude Opus 5.5, labelled blind in Claude Code
-    "astra": Path("data/golden/astra_v3.jsonl"),  # openai/gpt-6-astra via OpenRouter, same rules + transcript
+    "opus": Path("data/golden/opus.jsonl"),  # Claude Opus 5.5, labelled blind in Claude Code
+    "astra": Path("data/golden/astra.jsonl"),  # openai/gpt-6-astra via OpenRouter, same rules + transcript
 }
-REVIEW = Path("data/golden/review_v3.json")
+REVIEW = Path("data/golden/review.json")
 # scored fields (LABELING.md); for compliance checks only .value is compared, evidence is not scored
 COMPARED = [
     "call_type",

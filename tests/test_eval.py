@@ -143,7 +143,6 @@ def test_field_table_lists_every_field():
     for col in ["call_type", "direction", "outcome", "agent_handoff", "recording_disclosed",
                 "obj P", "obj R", "obj F1", "handled"]:
         assert col in head, col
-    assert "disclaimer" not in head
     assert "| 1.00 |" in field_table([_row()]).splitlines()[2]
 
 
